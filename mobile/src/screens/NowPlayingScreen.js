@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayer } from '../context/PlayerContext';
@@ -8,10 +9,26 @@ const fmt = (ms) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
 
+const SEEK_STEP = 15000; // ±15 seconds
+
 export default function NowPlayingScreen({ onClose }) {
-  const { current, isPlaying, togglePlay, next, prev, position, duration, seek } = usePlayer();
+  const {
+    current,
+    isPlaying,
+    togglePlay,
+    next,
+    prev,
+    position,
+    duration,
+    seek,
+    seekBy,
+    repeatMode,
+    cycleRepeat,
+  } = usePlayer();
+  const trackWidth = useRef(0);
   if (!current) return null;
   const pct = duration ? Math.min(1, position / duration) : 0;
+  const repeatActive = repeatMode !== 'off';
 
   return (
     <View style={[styles.wrap, { backgroundColor: accentFor(current.id) }]}>
@@ -34,12 +51,15 @@ export default function NowPlayingScreen({ onClose }) {
         </Text>
       </View>
 
-      {/* Progress bar (tap to seek to a rough position) */}
+      {/* Progress bar — tap anywhere to play from that position. */}
       <Pressable
         style={styles.track}
+        onLayout={(e) => {
+          trackWidth.current = e.nativeEvent.layout.width;
+        }}
         onPress={(e) => {
+          const w = trackWidth.current || 1;
           const x = e.nativeEvent.locationX;
-          const w = e.nativeEvent.target ? 320 : 320;
           if (duration) seek(Math.max(0, Math.min(1, x / w)) * duration);
         }}
       >
@@ -53,14 +73,41 @@ export default function NowPlayingScreen({ onClose }) {
       </View>
 
       <View style={styles.controls}>
-        <Pressable onPress={prev} hitSlop={12}>
-          <Ionicons name="play-skip-back" size={36} color="#fff" />
+        <Pressable onPress={prev} hitSlop={10}>
+          <Ionicons name="play-skip-back" size={32} color="#fff" />
+        </Pressable>
+        <Pressable onPress={() => seekBy(-SEEK_STEP)} hitSlop={10} style={styles.seekBtn}>
+          <Ionicons name="play-back" size={26} color="#fff" />
+          <Text style={styles.seekLabel}>15</Text>
         </Pressable>
         <Pressable onPress={togglePlay} style={styles.playBtn}>
           <Ionicons name={isPlaying ? 'pause' : 'play'} size={36} color="#000" />
         </Pressable>
-        <Pressable onPress={next} hitSlop={12}>
-          <Ionicons name="play-skip-forward" size={36} color="#fff" />
+        <Pressable onPress={() => seekBy(SEEK_STEP)} hitSlop={10} style={styles.seekBtn}>
+          <Ionicons name="play-forward" size={26} color="#fff" />
+          <Text style={styles.seekLabel}>15</Text>
+        </Pressable>
+        <Pressable onPress={next} hitSlop={10}>
+          <Ionicons name="play-skip-forward" size={32} color="#fff" />
+        </Pressable>
+      </View>
+
+      {/* Repeat toggle: off → loop queue → loop one. */}
+      <View style={styles.secondaryRow}>
+        <Pressable onPress={cycleRepeat} hitSlop={12} style={styles.repeatBtn}>
+          <Ionicons
+            name="repeat"
+            size={22}
+            color={repeatActive ? '#fff' : 'rgba(255,255,255,0.4)'}
+          />
+          {repeatMode === 'one' && <Text style={styles.repeatOne}>1</Text>}
+          <Text style={[styles.repeatLabel, { opacity: repeatActive ? 1 : 0.5 }]}>
+            {repeatMode === 'one'
+              ? 'Repeat one'
+              : repeatMode === 'all'
+                ? 'Loop queue'
+                : 'Repeat off'}
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -92,6 +139,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     marginTop: 28,
   },
+  seekBtn: { alignItems: 'center', justifyContent: 'center' },
+  seekLabel: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
+    marginTop: -4,
+  },
   playBtn: {
     backgroundColor: '#fff',
     width: 72,
@@ -100,4 +154,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  secondaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 24,
+  },
+  repeatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  repeatOne: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
+    marginLeft: -4,
+    marginTop: -10,
+  },
+  repeatLabel: { color: '#fff', fontSize: 12, fontWeight: '600' },
 });
