@@ -1,196 +1,164 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
+import TrackPlayer, {
+  AppKilledPlaybackBehavior,
+  Capability,
+  Event,
+  RepeatMode,
+  useIsPlaying,
+  useProgress,
+} from 'react-native-track-player';
 
 const PlayerContext = createContext(null);
 
-// Repeat cycle: off → all (loop queue) → one (loop current) → off …
-const REPEAT_MODES = ['off', 'all', 'one'];
+// Our repeat vocabulary ↔ RNTP's RepeatMode.
+const REPEAT_ORDER = ['off', 'all', 'one'];
+const toRntpRepeat = (m) =>
+  m === 'one' ? RepeatMode.Track : m === 'all' ? RepeatMode.Queue : RepeatMode.Off;
+
+// Set up the native player exactly once (RNTP throws if set up twice).
+let setupPromise = null;
+function ensureSetup() {
+  if (setupPromise) return setupPromise;
+  setupPromise = (async () => {
+    try {
+      await TrackPlayer.setupPlayer({
+        // Auto-pause on interruptions (incoming/active call, other audio apps)
+        // and auto-resume when the interruption ends.
+        autoHandleInterruptions: true,
+      });
+    } catch {
+      // Already initialised in this JS runtime — fine.
+    }
+    await TrackPlayer.updateOptions({
+      android: {
+        appKilledPlaybackBehavior:
+          AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification,
+      },
+      capabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+        Capability.SeekTo,
+        Capability.JumpForward,
+        Capability.JumpBackward,
+      ],
+      compactCapabilities: [
+        Capability.Play,
+        Capability.Pause,
+        Capability.SkipToNext,
+        Capability.SkipToPrevious,
+      ],
+      progressUpdateEventInterval: 1,
+      forwardJumpInterval: 15,
+      backwardJumpInterval: 15,
+    });
+  })();
+  return setupPromise;
+}
+
+const toTrack = (s) => ({
+  id: String(s.id),
+  url: s.audioUrl,
+  title: s.title,
+  artist: s.artist,
+  album: s.album,
+  artwork: s.coverUrl,
+  duration: s.duration,
+});
 
 export function PlayerProvider({ children }) {
-  const soundRef = useRef(null);
-  const loadToken = useRef(0); // guards against overlapping loads when switching fast
-  const queueRef = useRef([]); // ref mirrors so status callbacks read fresh values
-  const indexRef = useRef(-1);
-  const repeatRef = useRef('all');
-
   const [queue, setQueue] = useState([]);
+  const queueRef = useRef([]);
   const [index, setIndex] = useState(-1);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
-  const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [repeatMode, setRepeatMode] = useState('all'); // default: auto-play + loop
+  const [repeatMode, setRepeatMode] = useState('all'); // default: auto-play + loop queue
 
-  const current = index >= 0 ? queue[index] : null;
+  // RNTP hooks (progress is in SECONDS; we expose milliseconds to match the UI).
+  const progress = useProgress(500);
+  const { playing, bufferingDuringPlay } = useIsPlaying();
 
   useEffect(() => {
-    repeatRef.current = repeatMode;
-    // Keep the live sound's native loop flag in sync (repeat-one = seamless loop).
-    if (soundRef.current) soundRef.current.setIsLoopingAsync(repeatMode === 'one');
-  }, [repeatMode]);
-  useEffect(() => {
-    queueRef.current = queue;
-  }, [queue]);
-  useEffect(() => {
-    indexRef.current = index;
-  }, [index]);
-
-  useEffect(() => {
-    // Keep audio playing when the app is backgrounded or the phone is locked.
-    Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
-      shouldDuckAndroid: true,
-      interruptionModeIOS: InterruptionModeIOS.DoNotMix,
-      interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+    let mounted = true;
+    ensureSetup().then(() => {
+      if (mounted) TrackPlayer.setRepeatMode(RepeatMode.Queue);
     });
-    return () => {
-      if (soundRef.current) soundRef.current.unloadAsync();
-    };
   }, []);
 
-  // Load + play a song. Hardened so selecting a new song always stops the old
-  // one first — no two tracks ever overlap / linger in the background.
-  async function loadAndPlay(song) {
-    const token = ++loadToken.current;
-    try {
-      if (soundRef.current) {
-        const old = soundRef.current;
-        soundRef.current = null;
-        await old.unloadAsync().catch(() => {});
-      }
-      if (!song?.audioUrl) return;
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: song.audioUrl },
-        {
-          shouldPlay: true,
-          isLooping: repeatRef.current === 'one',
-          progressUpdateIntervalMillis: 500,
-        },
-        (st) => onStatus(st, token),
-      );
-      // A newer load started while we were awaiting — throw this one away.
-      if (token !== loadToken.current) {
-        await sound.unloadAsync().catch(() => {});
-        return;
-      }
-      soundRef.current = sound;
-      setIsPlaying(true);
-    } catch (e) {
-      console.warn('Audio error', e.message);
-      if (token === loadToken.current) setIsPlaying(false);
-    }
-  }
+  // Keep our index in sync as the active track changes (incl. auto-advance).
+  useEffect(() => {
+    const sub = TrackPlayer.addEventListener(
+      Event.PlaybackActiveTrackChanged,
+      (e) => {
+        if (e?.index != null) setIndex(e.index);
+      },
+    );
+    return () => sub.remove();
+  }, []);
 
-  function onStatus(status, token) {
-    if (token !== loadToken.current) return; // ignore stale callbacks
-    if (!status.isLoaded) return;
-    setPosition(status.positionMillis || 0);
-    setDuration(status.durationMillis || 0);
-    setIsPlaying(status.isPlaying);
-    setIsBuffering(!!status.isBuffering);
-    // didJustFinish only fires when NOT natively looping (i.e. repeat !== 'one').
-    if (status.didJustFinish && !status.isLooping) handleTrackEnd();
-  }
+  const current = index >= 0 ? queue[index] : null;
+  const isPlaying = !!playing;
+  const isBuffering = !!bufferingDuringPlay;
+  const position = (progress.position || 0) * 1000;
+  const duration = (progress.duration || 0) * 1000;
 
-  // Auto-advance when a track ends, honouring the repeat mode.
-  function handleTrackEnd() {
-    const mode = repeatRef.current;
-    const q = queueRef.current;
-    const i = indexRef.current;
-    if (i < 0 || q.length === 0) return;
-
-    const atEnd = i >= q.length - 1;
-    if (atEnd && mode === 'off') {
-      setIsPlaying(false); // stop at end of queue
-      return;
-    }
-    const ni = (i + 1) % q.length;
-    setIndex(ni);
-    indexRef.current = ni;
-    loadAndPlay(q[ni]);
-  }
-
-  // Play a song within a list (the list becomes the queue).
-  function playSong(song, list) {
+  // Play a song within a list (the list becomes the queue). Replacing the
+  // queue stops any current track — no overlap / lingering background audio.
+  async function playSong(song, list) {
     const q = Array.isArray(list) && list.length ? list : [song];
     const i = Math.max(0, q.findIndex((s) => s.id === song.id));
     setQueue(q);
-    setIndex(i);
     queueRef.current = q;
-    indexRef.current = i;
-    loadAndPlay(q[i]);
+    setIndex(i);
+    await ensureSetup();
+    await TrackPlayer.reset();
+    await TrackPlayer.add(q.map(toTrack));
+    if (i > 0) await TrackPlayer.skip(i);
+    await TrackPlayer.play();
   }
 
   async function togglePlay() {
-    const s = soundRef.current;
-    if (!s) {
-      if (current) loadAndPlay(current);
-      return;
-    }
-    const status = await s.getStatusAsync();
-    if (status.isPlaying) {
-      await s.pauseAsync();
-      setIsPlaying(false);
-    } else {
-      await s.playAsync();
-      setIsPlaying(true);
-    }
+    if (playing) await TrackPlayer.pause();
+    else await TrackPlayer.play();
   }
 
-  // Manual skip — always moves, regardless of repeat mode.
-  function next() {
-    const q = queueRef.current;
-    const i = indexRef.current;
-    if (i < 0 || q.length === 0) return;
-    const ni = (i + 1) % q.length;
-    setIndex(ni);
-    indexRef.current = ni;
-    loadAndPlay(q[ni]);
+  async function next() {
+    try {
+      await TrackPlayer.skipToNext();
+    } catch {
+      // at end of queue with repeat off
+    }
   }
 
   async function prev() {
-    // Common UX: if more than 3s into the track, restart it instead of skipping.
-    if (soundRef.current) {
-      const st = await soundRef.current.getStatusAsync();
-      if (st.isLoaded && (st.positionMillis || 0) > 3000) {
-        await soundRef.current.setPositionAsync(0);
-        return;
-      }
+    // If more than 3s into the track, restart it; otherwise go to previous.
+    const { position: pos } = await TrackPlayer.getProgress();
+    if (pos > 3) {
+      await TrackPlayer.seekTo(0);
+      return;
     }
-    const q = queueRef.current;
-    const i = indexRef.current;
-    if (i < 0 || q.length === 0) return;
-    const pi = (i - 1 + q.length) % q.length;
-    setIndex(pi);
-    indexRef.current = pi;
-    loadAndPlay(q[pi]);
+    try {
+      await TrackPlayer.skipToPrevious();
+    } catch {
+      await TrackPlayer.seekTo(0);
+    }
   }
 
-  // Seek to an absolute position (play from a selected second).
+  // Seek to an absolute position (play from a selected second). Input: ms.
   async function seek(millis) {
-    if (soundRef.current) {
-      await soundRef.current.setPositionAsync(Math.max(0, millis));
-    }
+    await TrackPlayer.seekTo(Math.max(0, millis) / 1000);
   }
 
-  // Jump forward / back by N milliseconds (e.g. +15s / -15s buttons).
+  // Jump forward / back by N milliseconds (±15s buttons).
   async function seekBy(deltaMillis) {
-    const s = soundRef.current;
-    if (!s) return;
-    const st = await s.getStatusAsync();
-    if (!st.isLoaded) return;
-    const target = Math.max(
-      0,
-      Math.min(st.durationMillis || 0, (st.positionMillis || 0) + deltaMillis),
-    );
-    await s.setPositionAsync(target);
+    await TrackPlayer.seekBy(deltaMillis / 1000);
   }
 
   function cycleRepeat() {
-    setRepeatMode(
-      (m) => REPEAT_MODES[(REPEAT_MODES.indexOf(m) + 1) % REPEAT_MODES.length],
-    );
+    setRepeatMode((m) => {
+      const nm = REPEAT_ORDER[(REPEAT_ORDER.indexOf(m) + 1) % REPEAT_ORDER.length];
+      TrackPlayer.setRepeatMode(toRntpRepeat(nm));
+      return nm;
+    });
   }
 
   return (
