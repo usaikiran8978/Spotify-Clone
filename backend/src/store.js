@@ -13,6 +13,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_FILE = path.join(__dirname, '..', 'data.json');
 const useMongo = !!process.env.MONGODB_URI;
 
+// De-dupe key for bulk imports — same title+artist is treated as one song.
+const dupeKey = (s) => `${s.title}|${s.artist}`.trim().toLowerCase();
+
 let impl; // set by init()
 
 // ---------------------------------------------------------------- JSON mode
@@ -55,6 +58,19 @@ function jsonStore() {
       songs = [...SONGS];
       persist();
       return songs.length;
+    },
+    async addSongs(incoming) {
+      const have = new Set(songs.map(dupeKey));
+      let added = 0;
+      for (const s of incoming) {
+        const k = dupeKey(s);
+        if (have.has(k)) continue;
+        have.add(k);
+        songs.unshift(s);
+        added++;
+      }
+      persist();
+      return { added, skipped: incoming.length - added, total: songs.length };
     },
   };
 }
@@ -104,6 +120,22 @@ async function mongoStore() {
       await coll.insertMany(SONGS.map((s) => ({ ...s })));
       return SONGS.length;
     },
+    async addSongs(incoming) {
+      const existing = await coll
+        .find({}, { projection: { title: 1, artist: 1 } })
+        .toArray();
+      const have = new Set(existing.map(dupeKey));
+      const fresh = [];
+      for (const s of incoming) {
+        const k = dupeKey(s);
+        if (have.has(k)) continue;
+        have.add(k);
+        fresh.push({ ...s });
+      }
+      if (fresh.length) await coll.insertMany(fresh);
+      const total = await coll.countDocuments();
+      return { added: fresh.length, skipped: incoming.length - fresh.length, total };
+    },
   };
 }
 
@@ -119,4 +151,5 @@ export const store = {
   updateSong: (...a) => impl.updateSong(...a),
   removeSong: (...a) => impl.removeSong(...a),
   reseed: (...a) => impl.reseed(...a),
+  addSongs: (...a) => impl.addSongs(...a),
 };

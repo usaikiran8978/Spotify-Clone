@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { customAlphabet } from 'nanoid';
 import { store } from './store.js';
+import { importCatalogue } from './importer.js';
 
 const nanoid = customAlphabet('1234567890abcdefghijklmnopqrstuvwxyz', 10);
 const app = express();
@@ -142,6 +143,17 @@ app.delete(
 app.post(
   '/api/admin/reseed',
   h(async (_req, res) => ok(res, { count: await store.reseed() })),
+);
+
+// Import a real song catalogue (metadata + art + 30s preview) from iTunes.
+// ?perTerm=1..200 controls how many results each search pulls (default 50).
+app.post(
+  '/api/admin/import',
+  h(async (req, res) => {
+    const songs = await importCatalogue({ perTerm: req.query.perTerm });
+    const result = await store.addSongs(songs);
+    ok(res, { fetched: songs.length, ...result });
+  }),
 );
 
 app.get('/health', (_req, res) => res.json({ ok: true }));

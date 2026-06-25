@@ -27,4 +27,8 @@ export const api = {
     req(`/api/songs/${id}`, { method: 'PUT', body: JSON.stringify(patch) }),
   remove: (id) => req(`/api/songs/${id}`, { method: 'DELETE' }),
   reseed: () => req('/api/admin/reseed', { method: 'POST' }),
+  importReal: (perTerm) =>
+    req(`/api/admin/import${perTerm ? `?perTerm=${perTerm}` : ''}`, {
+      method: 'POST',
+    }),
 };

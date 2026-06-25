@@ -18,6 +18,8 @@ export default function App() {
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [notice, setNotice] = useState('');
 
   // filters
   const [langFilter, setLangFilter] = useState('');
@@ -119,18 +121,49 @@ export default function App() {
     refresh();
   }
 
+  async function importReal() {
+    if (
+      !confirm(
+        'Import real songs (titles, artists, album art + 30s preview audio) ' +
+          'from the iTunes catalogue? Existing songs are kept; duplicates are skipped.',
+      )
+    )
+      return;
+    setImporting(true);
+    setError('');
+    setNotice('');
+    try {
+      const r = await api.importReal();
+      setNotice(
+        `Imported ${r.added} new songs (skipped ${r.skipped} duplicates). ` +
+          `Catalogue now has ${r.total}.`,
+      );
+      await refresh();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <div className="app">
       <header className="topbar">
         <div className="brand">
           <span className="logo">●</span> Spotify Clone · Admin
         </div>
-        <button className="ghost" onClick={reseed}>
-          Reset to seed
-        </button>
+        <div className="topbar-actions">
+          <button className="primary" onClick={importReal} disabled={importing}>
+            {importing ? 'Importing…' : '⬇ Import real songs'}
+          </button>
+          <button className="ghost" onClick={reseed} disabled={importing}>
+            Reset to seed
+          </button>
+        </div>
       </header>
 
       {error && <div className="error">⚠ {error}</div>}
+      {notice && <div className="notice">✓ {notice}</div>}
 
       <div className="layout">
         {/* ---- Editor ---- */}
