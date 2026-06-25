@@ -140,6 +140,24 @@ app.delete(
   }),
 );
 
+// Bulk-delete selected songs. Body: { ids: [...] }
+app.post(
+  '/api/admin/delete',
+  h(async (req, res) => {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
+    if (!ids.length) {
+      return res.status(400).json({ ok: false, error: 'ids array is required' });
+    }
+    ok(res, { deleted: await store.removeSongs(ids) });
+  }),
+);
+
+// Delete the entire catalogue.
+app.post(
+  '/api/admin/clear',
+  h(async (_req, res) => ok(res, { deleted: await store.clearSongs() })),
+);
+
 app.post(
   '/api/admin/reseed',
   h(async (_req, res) => ok(res, { count: await store.reseed() })),

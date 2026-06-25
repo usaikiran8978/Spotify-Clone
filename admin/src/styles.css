@@ -126,3 +126,6 @@ td { padding: 8px; border-bottom: 1px solid var(--line); font-size: 14px; vertic
 .notice { background: #16331f; color: #4ade80; padding: 12px 28px; }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
 .topbar-actions button:disabled { opacity: 0.6; cursor: not-allowed; }
+.ghost.danger { color: #f0726f; border-color: #5a2a2a; }
+.bulk-del { margin-left: 12px; font-size: 13px; }
+tr.selected { background: #1c2a22; }

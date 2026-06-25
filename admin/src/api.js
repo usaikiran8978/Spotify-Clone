@@ -26,6 +26,9 @@ export const api = {
   update: (id, patch) =>
     req(`/api/songs/${id}`, { method: 'PUT', body: JSON.stringify(patch) }),
   remove: (id) => req(`/api/songs/${id}`, { method: 'DELETE' }),
+  removeMany: (ids) =>
+    req('/api/admin/delete', { method: 'POST', body: JSON.stringify({ ids }) }),
+  clearAll: () => req('/api/admin/clear', { method: 'POST' }),
   reseed: () => req('/api/admin/reseed', { method: 'POST' }),
   importReal: ({ source, perTerm } = {}) => {
     const qs = new URLSearchParams();

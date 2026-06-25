@@ -20,6 +20,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
   const [notice, setNotice] = useState('');
+  const [selected, setSelected] = useState(() => new Set());
 
   // filters
   const [langFilter, setLangFilter] = useState('');
@@ -39,6 +40,7 @@ export default function App() {
         ? await api.latest(langFilter)
         : await api.songs({ language: langFilter, category: catFilter, q: query });
       setSongs(list);
+      setSelected(new Set());
     } catch (e) {
       setError(e.message);
     } finally {
@@ -115,6 +117,54 @@ export default function App() {
     refresh();
   }
 
+  function toggleSelect(id) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  const allVisibleSelected =
+    songs.length > 0 && songs.every((s) => selected.has(s.id));
+
+  function toggleSelectAll() {
+    setSelected((prev) => {
+      if (songs.length > 0 && songs.every((s) => prev.has(s.id))) return new Set();
+      return new Set(songs.map((s) => s.id));
+    });
+  }
+
+  async function delSelected() {
+    const ids = [...selected];
+    if (!ids.length) return;
+    if (!confirm(`Delete ${ids.length} selected song(s)?`)) return;
+    setError('');
+    setNotice('');
+    try {
+      const r = await api.removeMany(ids);
+      setNotice(`Deleted ${r.deleted} song(s).`);
+      await refresh();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function delAll() {
+    if (!confirm('Delete ALL songs in the catalogue? This cannot be undone.'))
+      return;
+    if (!confirm('Are you absolutely sure? Every song will be removed.')) return;
+    setError('');
+    setNotice('');
+    try {
+      const r = await api.clearAll();
+      setNotice(`Deleted all ${r.deleted} song(s).`);
+      await refresh();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
   async function reseed() {
     if (!confirm('Reset the catalogue to seed data?')) return;
     await api.reseed();
@@ -172,6 +222,14 @@ export default function App() {
           </button>
           <button className="ghost" onClick={reseed} disabled={importing}>
             Reset to seed
+          </button>
+          <button
+            className="ghost danger"
+            onClick={delAll}
+            disabled={importing}
+            title="Delete every song in the catalogue"
+          >
+            Delete all
           </button>
         </div>
       </header>
@@ -279,7 +337,14 @@ export default function App() {
         {/* ---- List ---- */}
         <section className="card list">
           <div className="list-head">
-            <h2>Catalogue ({songs.length})</h2>
+            <h2>
+              Catalogue ({songs.length})
+              {selected.size > 0 && (
+                <button className="link danger bulk-del" onClick={delSelected}>
+                  Delete selected ({selected.size})
+                </button>
+              )}
+            </h2>
             <div className="filters">
               <label className="latest-toggle">
                 <input
@@ -335,6 +400,14 @@ export default function App() {
             <table>
               <thead>
                 <tr>
+                  <th>
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAll}
+                      title="Select all"
+                    />
+                  </th>
                   <th></th>
                   <th>Title</th>
                   <th>Artist</th>
@@ -346,7 +419,14 @@ export default function App() {
               </thead>
               <tbody>
                 {songs.map((s) => (
-                  <tr key={s.id}>
+                  <tr key={s.id} className={selected.has(s.id) ? 'selected' : ''}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(s.id)}
+                        onChange={() => toggleSelect(s.id)}
+                      />
+                    </td>
                     <td>
                       {s.coverUrl ? (
                         <img className="thumb" src={s.coverUrl} alt="" />

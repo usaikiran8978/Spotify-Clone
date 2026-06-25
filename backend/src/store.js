@@ -54,6 +54,19 @@ function jsonStore() {
       persist();
       return songs.length < before;
     },
+    async removeSongs(ids) {
+      const set = new Set(ids);
+      const before = songs.length;
+      songs = songs.filter((s) => !set.has(s.id));
+      persist();
+      return before - songs.length;
+    },
+    async clearSongs() {
+      const n = songs.length;
+      songs = [];
+      persist();
+      return n;
+    },
     async reseed() {
       songs = [...SONGS];
       persist();
@@ -115,6 +128,14 @@ async function mongoStore() {
       const r = await coll.deleteOne({ id });
       return r.deletedCount > 0;
     },
+    async removeSongs(ids) {
+      const r = await coll.deleteMany({ id: { $in: ids } });
+      return r.deletedCount;
+    },
+    async clearSongs() {
+      const r = await coll.deleteMany({});
+      return r.deletedCount;
+    },
     async reseed() {
       await coll.deleteMany({});
       await coll.insertMany(SONGS.map((s) => ({ ...s })));
@@ -150,6 +171,8 @@ export const store = {
   addSong: (...a) => impl.addSong(...a),
   updateSong: (...a) => impl.updateSong(...a),
   removeSong: (...a) => impl.removeSong(...a),
+  removeSongs: (...a) => impl.removeSongs(...a),
+  clearSongs: (...a) => impl.clearSongs(...a),
   reseed: (...a) => impl.reseed(...a),
   addSongs: (...a) => impl.addSongs(...a),
 };
