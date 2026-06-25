@@ -121,22 +121,23 @@ export default function App() {
     refresh();
   }
 
-  async function importReal() {
-    if (
-      !confirm(
-        'Import real songs (titles, artists, album art + 30s preview audio) ' +
-          'from the iTunes catalogue? Existing songs are kept; duplicates are skipped.',
-      )
-    )
+  async function importReal(source) {
+    const blurb =
+      source === 'audius'
+        ? 'Import FULL-LENGTH songs from the Audius open-streaming catalogue ' +
+          '(indie/electronic — audio plays start to finish)?'
+        : 'Import mainstream songs (titles, artists, album art + 30-second ' +
+          'preview audio) from the iTunes catalogue?';
+    if (!confirm(`${blurb} Existing songs are kept; duplicates are skipped.`))
       return;
     setImporting(true);
     setError('');
     setNotice('');
     try {
-      const r = await api.importReal();
+      const r = await api.importReal({ source });
       setNotice(
-        `Imported ${r.added} new songs (skipped ${r.skipped} duplicates). ` +
-          `Catalogue now has ${r.total}.`,
+        `Imported ${r.added} new ${source === 'audius' ? 'full-length' : ''} songs ` +
+          `(skipped ${r.skipped} duplicates). Catalogue now has ${r.total}.`,
       );
       await refresh();
     } catch (e) {
@@ -153,8 +154,21 @@ export default function App() {
           <span className="logo">●</span> Spotify Clone · Admin
         </div>
         <div className="topbar-actions">
-          <button className="primary" onClick={importReal} disabled={importing}>
-            {importing ? 'Importing…' : '⬇ Import real songs'}
+          <button
+            className="primary"
+            onClick={() => importReal('audius')}
+            disabled={importing}
+            title="Full-length songs (Audius open catalogue)"
+          >
+            {importing ? 'Importing…' : '⬇ Import full songs'}
+          </button>
+          <button
+            className="ghost"
+            onClick={() => importReal('itunes')}
+            disabled={importing}
+            title="Mainstream songs with 30-second preview audio (iTunes)"
+          >
+            Import 30s previews
           </button>
           <button className="ghost" onClick={reseed} disabled={importing}>
             Reset to seed

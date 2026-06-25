@@ -27,8 +27,11 @@ export const api = {
     req(`/api/songs/${id}`, { method: 'PUT', body: JSON.stringify(patch) }),
   remove: (id) => req(`/api/songs/${id}`, { method: 'DELETE' }),
   reseed: () => req('/api/admin/reseed', { method: 'POST' }),
-  importReal: (perTerm) =>
-    req(`/api/admin/import${perTerm ? `?perTerm=${perTerm}` : ''}`, {
-      method: 'POST',
-    }),
+  importReal: ({ source, perTerm } = {}) => {
+    const qs = new URLSearchParams();
+    if (source) qs.set('source', source);
+    if (perTerm) qs.set('perTerm', perTerm);
+    const suffix = qs.toString() ? `?${qs}` : '';
+    return req(`/api/admin/import${suffix}`, { method: 'POST' });
+  },
 };

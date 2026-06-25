@@ -103,3 +103,107 @@ export async function importCatalogue({ perTerm = 50 } = {}) {
   }
   return songs;
 }
+
+// ---------------------------------------------------------------------------
+// Audius — FULL-LENGTH songs.
+//
+// Audius is a legal open-streaming platform with a free, keyless public API
+// that returns complete, streamable MP3s (not 30s previews). The catalogue is
+// mostly independent / electronic / hip-hop, so language tags here are
+// approximate (search is fuzzy) — but the audio plays start-to-finish.
+const AUDIUS_GATEWAY = 'https://discoveryprovider.audius.co';
+const APP = 'spotifyclone';
+
+// Text searches (full-length). Language-named queries keep the app's language
+// shelves populated, even though Audius matches them loosely.
+const AUDIUS_SEARCHES = [
+  { q: 'telugu', language: 'telugu', cats: ['telugu'] },
+  { q: 'tollywood', language: 'telugu', cats: ['telugu', 'love'] },
+  { q: 'hindi', language: 'hindi', cats: ['hindi'] },
+  { q: 'bollywood', language: 'hindi', cats: ['hindi', 'love'] },
+  { q: 'tamil', language: 'tamil', cats: ['tamil'] },
+  { q: 'kannada', language: 'kannada', cats: ['kannada'] },
+  { q: 'love', language: 'english', cats: ['english', 'love'] },
+  { q: 'workout', language: 'english', cats: ['english', 'workout'] },
+  { q: 'friendship', language: 'english', cats: ['english', 'friendship'] },
+  { q: 'remix', language: 'english', cats: ['english', 'dj'] },
+];
+
+// Trending by genre — bulk full-length tracks (100 each).
+const AUDIUS_TRENDING = [
+  { genre: 'Electronic', language: 'english', cats: ['english', 'dj'] },
+  { genre: 'Hip-Hop/Rap', language: 'english', cats: ['english', 'workout'] },
+  { genre: 'Pop', language: 'english', cats: ['english'] },
+  { genre: 'R&B/Soul', language: 'english', cats: ['english', 'love'] },
+];
+
+async function audiusGet(path) {
+  const sep = path.includes('?') ? '&' : '?';
+  const res = await fetch(`${AUDIUS_GATEWAY}${path}${sep}app_name=${APP}`, {
+    headers: { 'User-Agent': 'spotify-clone-importer' },
+  });
+  if (!res.ok) throw new Error(`audius ${res.status}`);
+  return (await res.json()).data || [];
+}
+
+function mapAudiusTrack(t, q, seen) {
+  if (!t || !t.id || !t.title || !t.is_streamable) return null;
+  const artist = t.user?.name || 'Unknown Artist';
+  const key = `${t.title}|${artist}`.trim().toLowerCase();
+  if (seen.has(key)) return null;
+  seen.add(key);
+
+  const dateStr = t.release_date || t.created_at;
+  const year = dateStr ? new Date(dateStr).getFullYear() : undefined;
+  return {
+    id: nanoid(),
+    title: t.title,
+    artist,
+    album: t.album || `${artist} • Audius`,
+    language: q.language,
+    categories: [...new Set([...q.cats, ...decadeCats(year)])],
+    year: year || new Date().getFullYear(),
+    duration: t.duration || 0, // full-length seconds
+    audioUrl: `${AUDIUS_GATEWAY}/v1/tracks/${t.id}/stream?app_name=${APP}`,
+    coverUrl: t.artwork?.['1000x1000'] || t.artwork?.['480x480'] || t.artwork?.['150x150'] || '',
+    plays: t.play_count || 0,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+export async function importFromAudius({ perQuery = 30 } = {}) {
+  const limit = Math.min(Math.max(Number(perQuery) || 30, 1), 100);
+  const seen = new Set();
+  const songs = [];
+
+  for (const q of AUDIUS_SEARCHES) {
+    let results;
+    try {
+      results = await audiusGet(
+        `/v1/tracks/search?query=${encodeURIComponent(q.q)}&limit=${limit}`,
+      );
+    } catch (e) {
+      console.warn(`audius search "${q.q}" failed: ${e.message}`);
+      continue;
+    }
+    for (const t of results) {
+      const song = mapAudiusTrack(t, q, seen);
+      if (song) songs.push(song);
+    }
+  }
+
+  for (const g of AUDIUS_TRENDING) {
+    let results;
+    try {
+      results = await audiusGet(`/v1/tracks/trending?genre=${encodeURIComponent(g.genre)}`);
+    } catch (e) {
+      console.warn(`audius trending "${g.genre}" failed: ${e.message}`);
+      continue;
+    }
+    for (const t of results.slice(0, limit)) {
+      const song = mapAudiusTrack(t, g, seen);
+      if (song) songs.push(song);
+    }
+  }
+  return songs;
+}
