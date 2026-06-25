@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Audio } from 'expo-av';
+import { Audio, InterruptionModeIOS, InterruptionModeAndroid } from 'expo-av';
 
 const PlayerContext = createContext(null);
 
@@ -14,7 +14,15 @@ export function PlayerProvider({ children }) {
   const current = index >= 0 ? queue[index] : null;
 
   useEffect(() => {
-    Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: false });
+    // Keep audio playing when the app is backgrounded or the phone is locked.
+    // Requires UIBackgroundModes:audio (iOS) + FOREGROUND_SERVICE perms (Android).
+    Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: true,
+      shouldDuckAndroid: true,
+      interruptionModeIOS: InterruptionModeIOS.DoNotMix,
+      interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
+    });
     return () => {
       if (soundRef.current) soundRef.current.unloadAsync();
     };

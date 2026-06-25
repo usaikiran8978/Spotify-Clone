@@ -11,10 +11,19 @@
       "backgroundColor": "#000000"
     },
     "assetBundlePatterns": ["**/*"],
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.demo.spotifyclone" },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.demo.spotifyclone",
+      "infoPlist": { "UIBackgroundModes": ["audio"] }
+    },
     "android": {
       "package": "com.demo.spotifyclone",
-      "adaptiveIcon": { "backgroundColor": "#000000" }
+      "adaptiveIcon": { "backgroundColor": "#000000" },
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.WAKE_LOCK"
+      ]
     },
     "web": { "bundler": "metro" }
   }
