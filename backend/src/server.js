@@ -3,6 +3,24 @@ import cors from 'cors';
 import { customAlphabet } from 'nanoid';
 import { store } from './store.js';
 import { importCatalogue, importFromAudius } from './importer.js';
+import { nameFor, categoryType } from './categories.js';
+
+// Categories = the seed reference list + any new slug that appears on songs
+// (e.g. a genre discovered during import). New types become categories
+// automatically; existing ones are reused.
+async function computeCategories() {
+  const songs = await store.allSongs();
+  const base = store.categories;
+  const baseSlugs = new Set(base.map((c) => c.slug));
+  const extra = new Map();
+  for (const s of songs) {
+    for (const slug of s.categories || []) {
+      if (!slug || baseSlugs.has(slug) || extra.has(slug)) continue;
+      extra.set(slug, { slug, name: nameFor(slug), type: categoryType(slug) });
+    }
+  }
+  return [...base, ...extra.values()];
+}
 
 const nanoid = customAlphabet('1234567890abcdefghijklmnopqrstuvwxyz', 10);
 const app = express();
@@ -19,7 +37,10 @@ const h = (fn) => (req, res) =>
 
 // --- Reference data ----------------------------------------------------
 app.get('/api/languages', (_req, res) => ok(res, store.languages));
-app.get('/api/categories', (_req, res) => ok(res, store.categories));
+app.get(
+  '/api/categories',
+  h(async (_req, res) => ok(res, await computeCategories())),
+);
 
 // --- Songs -------------------------------------------------------------
 // Query params: language, category, q (search), sort=latest|popular, limit
@@ -74,7 +95,8 @@ app.get(
       .filter((s) => !language || s.language === language)
       .slice(0, 12);
 
-    const shelves = store.categories
+    const categories = await computeCategories();
+    const shelves = categories
       .map((c) => ({
         slug: c.slug,
         name: c.name,
