@@ -7,6 +7,7 @@ import TrackPlayer, {
   useIsPlaying,
   useProgress,
 } from 'react-native-track-player';
+import { useDownloads } from './DownloadsContext';
 
 const PlayerContext = createContext(null);
 
@@ -57,9 +58,9 @@ function ensureSetup() {
   return setupPromise;
 }
 
-const toTrack = (s) => ({
+const toTrack = (s, localUri) => ({
   id: String(s.id),
-  url: s.audioUrl,
+  url: localUri || s.audioUrl, // play the offline copy when downloaded
   title: s.title,
   artist: s.artist,
   album: s.album,
@@ -68,6 +69,7 @@ const toTrack = (s) => ({
 });
 
 export function PlayerProvider({ children }) {
+  const { localUriFor } = useDownloads();
   const [queue, setQueue] = useState([]);
   const queueRef = useRef([]);
   const [index, setIndex] = useState(-1);
@@ -111,7 +113,7 @@ export function PlayerProvider({ children }) {
     setIndex(i);
     await ensureSetup();
     await TrackPlayer.reset();
-    await TrackPlayer.add(q.map(toTrack));
+    await TrackPlayer.add(q.map((s) => toTrack(s, localUriFor(s.id))));
     if (i > 0) await TrackPlayer.skip(i);
     await TrackPlayer.play();
   }

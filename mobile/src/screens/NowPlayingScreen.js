@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayer } from '../context/PlayerContext';
+import DownloadButton from '../components/DownloadButton';
 import { colors, accentFor } from '../theme';
 
 const fmt = (ms) => {
@@ -37,7 +38,7 @@ export default function NowPlayingScreen({ onClose }) {
           <Ionicons name="chevron-down" size={28} color="#fff" />
         </Pressable>
         <Text style={styles.topTitle}>NOW PLAYING</Text>
-        <Ionicons name="ellipsis-horizontal" size={22} color="#fff" />
+        <DownloadButton song={current} size={24} color="#fff" />
       </View>
 
       <Image source={{ uri: current.coverUrl }} style={styles.art} />

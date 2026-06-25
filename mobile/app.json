@@ -14,7 +14,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.demo.spotifyclone",
-      "infoPlist": { "UIBackgroundModes": ["audio"] }
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"],
+        "NSPhotoLibraryAddUsageDescription": "Allow Spotify Clone to save downloaded songs to your device.",
+        "NSPhotoLibraryUsageDescription": "Allow Spotify Clone to save downloaded songs to your device."
+      }
     },
     "android": {
       "package": "com.demo.spotifyclone",
@@ -22,9 +26,22 @@
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-        "android.permission.WAKE_LOCK"
+        "android.permission.WAKE_LOCK",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE"
       ]
     },
+    "plugins": [
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Spotify Clone to save downloaded songs to your device.",
+          "savePhotosPermission": "Allow Spotify Clone to save downloaded songs to your device.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
+    ],
     "web": { "bundler": "metro" }
   }
 }
