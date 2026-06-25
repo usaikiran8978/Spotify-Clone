@@ -1,0 +1,28 @@
+{
+  "cli": {
+    "version": ">= 5.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "android": {
+        "buildType": "apk"
+      },
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-YOUR-BACKEND.onrender.com"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://REPLACE-WITH-YOUR-BACKEND.onrender.com"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

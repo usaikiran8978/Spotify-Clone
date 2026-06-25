@@ -1,0 +1,10 @@
+# Netlify / drop-in static host config for the admin panel.
+# Set VITE_API_URL in the host's environment variables to your backend URL.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -1,0 +1,17 @@
+# Render Blueprint — deploys the backend API on the free tier.
+# In the Render dashboard: New → Blueprint → connect this repo. Then set the
+# MONGODB_URI env var (from MongoDB Atlas) when prompted.
+services:
+  - type: web
+    name: spotify-clone-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: MONGODB_URI
+        sync: false # paste your Atlas connection string in the dashboard
+      - key: MONGODB_DB
+        value: spotifyclone
