@@ -56,19 +56,35 @@ function mapSong(s) {
   };
 }
 
+// The API caps each page at 40 results, so fetch several pages in parallel to
+// surface many more songs (a popular query has hundreds).
+const PAGES = 4;
+
+async function fetchPage(query, page) {
+  try {
+    const res = await fetch(
+      `${SAAVN_URL}/api/search/songs?query=${encodeURIComponent(query)}&page=${page}&limit=40`,
+    );
+    const json = await res.json();
+    return json?.data?.results || json?.data || [];
+  } catch {
+    return [];
+  }
+}
+
 export async function searchSaavn(query) {
   if (!SAAVN_URL) return [];
-  const res = await fetch(
-    `${SAAVN_URL}/api/search/songs?query=${encodeURIComponent(query)}&page=0&limit=40`,
+  const pages = await Promise.all(
+    Array.from({ length: PAGES }, (_, p) => fetchPage(query, p)),
   );
-  const json = await res.json();
-  const results = json?.data?.results || json?.data || [];
-  const mapped = results.map(mapSong).filter((s) => s.audioUrl && s.title);
+  const mapped = pages
+    .flat()
+    .map(mapSong)
+    .filter((s) => s.audioUrl && s.title);
 
-  // JioSaavn floods results with the same song across many albums (dozens of
-  // different ids, same title, slightly varying artist strings). Collapse by
-  // title + duration — the same song always shares both, while genuinely
-  // different songs differ in one. Keep the first (most relevant) occurrence.
+  // JioSaavn floods results with the same recording under many titles
+  // (different albums / language tags / singer orderings). Collapse by
+  // normalised title + duration; genuinely different versions survive.
   const seen = new Set();
   const deduped = [];
   for (const s of mapped) {
