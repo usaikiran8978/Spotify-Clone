@@ -58,6 +58,19 @@ export function PlaylistsProvider({ children }) {
     );
   }
 
+  // Move the song at `from` to index `to` (used by reorder up/down controls).
+  function moveSong(id, from, to) {
+    save(
+      playlists.map((p) => {
+        if (p.id !== id || to < 0 || to >= p.songs.length) return p;
+        const songs = [...p.songs];
+        const [moved] = songs.splice(from, 1);
+        songs.splice(to, 0, moved);
+        return { ...p, songs };
+      }),
+    );
+  }
+
   const isInPlaylist = (id, songId) =>
     playlists.find((p) => p.id === id)?.songs.some((s) => s.id === songId) || false;
 
@@ -70,6 +83,7 @@ export function PlaylistsProvider({ children }) {
         renamePlaylist,
         addToPlaylist,
         removeFromPlaylist,
+        moveSong,
         isInPlaylist,
       }}
     >

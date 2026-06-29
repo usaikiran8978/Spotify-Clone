@@ -20,7 +20,8 @@ import { colors } from '../theme';
 export default function LibraryScreen() {
   const { playSong } = usePlayer();
   const { offlineList } = useDownloads();
-  const { playlists, createPlaylist, deletePlaylist, removeFromPlaylist } = usePlaylists();
+  const { playlists, createPlaylist, deletePlaylist, removeFromPlaylist, moveSong } =
+    usePlaylists();
   const [songs, setSongs] = useState([]);
   const [tab, setTab] = useState('all'); // 'all' | 'downloaded' | 'playlists'
   const [newName, setNewName] = useState('');
@@ -31,6 +32,15 @@ export default function LibraryScreen() {
   }, []);
 
   const openPlaylist = playlists.find((p) => p.id === openId) || null;
+
+  const shuffle = (arr) => {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
 
   const Tabs = (
     <View style={styles.tabs}>
@@ -86,9 +96,58 @@ export default function LibraryScreen() {
           data={openPlaylist.songs}
           keyExtractor={(s) => s.id}
           contentContainerStyle={{ padding: 12, paddingBottom: 24 }}
+          ListHeaderComponent={
+            openPlaylist.songs.length > 0 ? (
+              <View style={styles.playRow}>
+                <Pressable
+                  style={styles.playBtn}
+                  onPress={() => playSong(openPlaylist.songs[0], openPlaylist.songs)}
+                >
+                  <Ionicons name="play" size={18} color="#000" />
+                  <Text style={styles.playBtnText}>Play</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.shuffleBtn}
+                  onPress={() => {
+                    const s = shuffle(openPlaylist.songs);
+                    playSong(s[0], s);
+                  }}
+                >
+                  <Ionicons name="shuffle" size={18} color={colors.text} />
+                  <Text style={styles.shuffleText}>Shuffle</Text>
+                </Pressable>
+              </View>
+            ) : null
+          }
           ListEmptyComponent={<Text style={styles.empty}>This playlist is empty.</Text>}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <View style={styles.detailRow}>
+              <View style={styles.reorder}>
+                <Pressable
+                  hitSlop={8}
+                  disabled={index === 0}
+                  onPress={() => moveSong(openPlaylist.id, index, index - 1)}
+                >
+                  <Ionicons
+                    name="chevron-up"
+                    size={18}
+                    color={index === 0 ? colors.surface3 : colors.faint}
+                  />
+                </Pressable>
+                <Pressable
+                  hitSlop={8}
+                  disabled={index === openPlaylist.songs.length - 1}
+                  onPress={() => moveSong(openPlaylist.id, index, index + 1)}
+                >
+                  <Ionicons
+                    name="chevron-down"
+                    size={18}
+                    color={
+                      index === openPlaylist.songs.length - 1 ? colors.surface3 : colors.faint
+                    }
+                  />
+                </Pressable>
+              </View>
               <View style={{ flex: 1 }}>
                 <SongRow song={item} onPress={() => playSong(item, openPlaylist.songs)} />
               </View>
@@ -231,4 +290,26 @@ const styles = StyleSheet.create({
   },
   detailTitle: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  reorder: { alignItems: 'center', justifyContent: 'center' },
+  playRow: { flexDirection: 'row', gap: 12, marginBottom: 10, paddingHorizontal: 4 },
+  playBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.green,
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    borderRadius: 24,
+  },
+  playBtnText: { color: '#000', fontWeight: '800', fontSize: 15 },
+  shuffleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surface3,
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    borderRadius: 24,
+  },
+  shuffleText: { color: colors.text, fontWeight: '700', fontSize: 15 },
 });
