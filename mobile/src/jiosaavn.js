@@ -72,26 +72,60 @@ async function fetchPage(query, page) {
   }
 }
 
+// De-dupe a list of mapped songs by normalised title + duration.
+function dedupe(mapped) {
+  const seen = new Set();
+  const out = [];
+  for (const s of mapped) {
+    const key = `${normTitle(s.title)}|${s.duration}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
+// --- Artists ---
+export async function searchSaavnArtists(query) {
+  if (!SAAVN_URL) return [];
+  try {
+    const res = await fetch(
+      `${SAAVN_URL}/api/search/artists?query=${encodeURIComponent(query)}`,
+    );
+    const json = await res.json();
+    const arts = json?.data?.results || json?.data || [];
+    return arts
+      .filter((a) => a && a.id && a.name)
+      .map((a) => ({
+        id: String(a.id),
+        name: decode(a.name),
+        image: pickLast(a.image)?.url || pickLast(a.image)?.link || '',
+        role: a.role || '',
+      }));
+  } catch {
+    return [];
+  }
+}
+
+export async function getArtistSongs(artistId, pages = 3) {
+  if (!SAAVN_URL) return [];
+  const reqs = Array.from({ length: pages }, (_, p) =>
+    fetch(`${SAAVN_URL}/api/artists/${artistId}/songs?page=${p}`)
+      .then((r) => r.json())
+      .then((j) => j?.data?.songs || j?.data?.results || [])
+      .catch(() => []),
+  );
+  const all = (await Promise.all(reqs)).flat();
+  return dedupe(all.map(mapSong).filter((s) => s.audioUrl && s.title));
+}
+
 export async function searchSaavn(query) {
   if (!SAAVN_URL) return [];
   const pages = await Promise.all(
     Array.from({ length: PAGES }, (_, p) => fetchPage(query, p)),
   );
-  const mapped = pages
-    .flat()
-    .map(mapSong)
-    .filter((s) => s.audioUrl && s.title);
-
   // JioSaavn floods results with the same recording under many titles
-  // (different albums / language tags / singer orderings). Collapse by
-  // normalised title + duration; genuinely different versions survive.
-  const seen = new Set();
-  const deduped = [];
-  for (const s of mapped) {
-    const key = `${normTitle(s.title)}|${s.duration}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    deduped.push(s);
-  }
-  return deduped;
+  // (different albums / language tags / singer orderings) — dedupe collapses
+  // them by normalised title + duration; genuinely different versions survive.
+  return dedupe(pages.flat().map(mapSong).filter((s) => s.audioUrl && s.title));
 }
