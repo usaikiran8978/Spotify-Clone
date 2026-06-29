@@ -3,6 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayer } from '../context/PlayerContext';
 import DownloadButton from '../components/DownloadButton';
+import AddToPlaylistButton from '../components/AddToPlaylistButton';
 import { colors, accentFor } from '../theme';
 
 const fmt = (ms) => {
@@ -38,7 +39,10 @@ export default function NowPlayingScreen({ onClose }) {
           <Ionicons name="chevron-down" size={28} color="#fff" />
         </Pressable>
         <Text style={styles.topTitle}>NOW PLAYING</Text>
-        <DownloadButton song={current} size={24} color="#fff" />
+        <View style={styles.topActions}>
+          <AddToPlaylistButton song={current} size={24} color="#fff" />
+          <DownloadButton song={current} size={24} color="#fff" />
+        </View>
       </View>
 
       <Image source={{ uri: current.coverUrl }} style={styles.art} />
@@ -118,6 +122,7 @@ export default function NowPlayingScreen({ onClose }) {
 const styles = StyleSheet.create({
   wrap: { flex: 1, paddingHorizontal: 24, paddingTop: 56 },
   topbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   topTitle: { color: '#fff', fontSize: 11, fontWeight: '700', letterSpacing: 1 },
   art: {
     width: '100%',

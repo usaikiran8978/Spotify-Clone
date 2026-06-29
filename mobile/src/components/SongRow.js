@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 import { usePlayer } from '../context/PlayerContext';
 import DownloadButton from './DownloadButton';
+import AddToPlaylistButton from './AddToPlaylistButton';
 
 // Vertical list row (used in search results, category lists, queue).
 export default function SongRow({ song, onPress }) {
@@ -23,6 +24,7 @@ export default function SongRow({ song, onPress }) {
         {active && isPlaying && (
           <Ionicons name="volume-high" size={18} color={colors.green} />
         )}
+        <AddToPlaylistButton song={song} />
         <DownloadButton song={song} />
       </View>
     </Pressable>

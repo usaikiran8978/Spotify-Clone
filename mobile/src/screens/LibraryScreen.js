@@ -1,39 +1,173 @@
 import { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import SongRow from '../components/SongRow';
 import { api } from '../api';
 import { usePlayer } from '../context/PlayerContext';
 import { useDownloads } from '../context/DownloadsContext';
+import { usePlaylists } from '../context/PlaylistsContext';
 import { colors } from '../theme';
 
-// "All songs" + a "Downloaded" tab (offline songs, playable without network).
+// Library: All songs | Downloaded (offline) | Playlists.
 export default function LibraryScreen() {
   const { playSong } = usePlayer();
   const { offlineList } = useDownloads();
+  const { playlists, createPlaylist, deletePlaylist, removeFromPlaylist } = usePlaylists();
   const [songs, setSongs] = useState([]);
-  const [tab, setTab] = useState('all'); // 'all' | 'downloaded'
+  const [tab, setTab] = useState('all'); // 'all' | 'downloaded' | 'playlists'
+  const [newName, setNewName] = useState('');
+  const [openId, setOpenId] = useState(null);
 
   useEffect(() => {
     api.songs({ sort: 'latest' }).then(setSongs).catch(() => setSongs([]));
   }, []);
 
-  const list = tab === 'downloaded' ? offlineList : songs;
+  const openPlaylist = playlists.find((p) => p.id === openId) || null;
 
+  const Tabs = (
+    <View style={styles.tabs}>
+      {[
+        ['all', 'All songs'],
+        ['downloaded', `Downloaded · ${offlineList.length}`],
+        ['playlists', `Playlists · ${playlists.length}`],
+      ].map(([key, label]) => (
+        <Pressable
+          key={key}
+          onPress={() => {
+            setTab(key);
+            setOpenId(null);
+          }}
+        >
+          <Text style={[styles.tabText, tab === key && styles.tabActive]}>{label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+
+  // ---- Playlist detail ----
+  if (tab === 'playlists' && openPlaylist) {
+    return (
+      <View style={styles.wrap}>
+        <View style={styles.detailHead}>
+          <Pressable onPress={() => setOpenId(null)} hitSlop={10}>
+            <Ionicons name="chevron-back" size={26} color={colors.text} />
+          </Pressable>
+          <Text style={styles.detailTitle} numberOfLines={1}>
+            {openPlaylist.name}
+          </Text>
+          <Pressable
+            hitSlop={10}
+            onPress={() =>
+              Alert.alert('Delete playlist', `Delete "${openPlaylist.name}"?`, [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Delete',
+                  style: 'destructive',
+                  onPress: () => {
+                    deletePlaylist(openPlaylist.id);
+                    setOpenId(null);
+                  },
+                },
+              ])
+            }
+          >
+            <Ionicons name="trash-outline" size={22} color={colors.faint} />
+          </Pressable>
+        </View>
+        <FlatList
+          data={openPlaylist.songs}
+          keyExtractor={(s) => s.id}
+          contentContainerStyle={{ padding: 12, paddingBottom: 24 }}
+          ListEmptyComponent={<Text style={styles.empty}>This playlist is empty.</Text>}
+          renderItem={({ item }) => (
+            <View style={styles.detailRow}>
+              <View style={{ flex: 1 }}>
+                <SongRow song={item} onPress={() => playSong(item, openPlaylist.songs)} />
+              </View>
+              <Pressable
+                hitSlop={10}
+                onPress={() => removeFromPlaylist(openPlaylist.id, item.id)}
+              >
+                <Ionicons name="remove-circle-outline" size={22} color={colors.faint} />
+              </Pressable>
+            </View>
+          )}
+        />
+      </View>
+    );
+  }
+
+  // ---- Playlists list ----
+  if (tab === 'playlists') {
+    return (
+      <View style={styles.wrap}>
+        {Tabs}
+        <View style={styles.createRow}>
+          <TextInput
+            style={styles.input}
+            placeholder="New playlist name"
+            placeholderTextColor={colors.faint}
+            value={newName}
+            onChangeText={setNewName}
+            onSubmitEditing={() => {
+              if (newName.trim()) {
+                createPlaylist(newName);
+                setNewName('');
+              }
+            }}
+            returnKeyType="done"
+          />
+          <Pressable
+            style={styles.createBtn}
+            onPress={() => {
+              if (newName.trim()) {
+                createPlaylist(newName);
+                setNewName('');
+              }
+            }}
+          >
+            <Ionicons name="add" size={22} color="#000" />
+          </Pressable>
+        </View>
+        <FlatList
+          data={playlists}
+          keyExtractor={(p) => p.id}
+          contentContainerStyle={{ padding: 12, paddingBottom: 24 }}
+          ListEmptyComponent={
+            <Text style={styles.empty}>
+              No playlists yet. Create one above, or tap ＋ on any song.
+            </Text>
+          }
+          renderItem={({ item }) => (
+            <Pressable style={styles.plRow} onPress={() => setOpenId(item.id)}>
+              <Ionicons name="musical-notes" size={22} color={colors.muted} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.plName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={styles.plSub}>{item.songs.length} songs</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.faint} />
+            </Pressable>
+          )}
+        />
+      </View>
+    );
+  }
+
+  // ---- All / Downloaded ----
+  const list = tab === 'downloaded' ? offlineList : songs;
   return (
     <View style={styles.wrap}>
-      <View style={styles.tabs}>
-        <Pressable onPress={() => setTab('all')} style={styles.tab}>
-          <Text style={[styles.tabText, tab === 'all' && styles.tabActive]}>
-            All songs
-          </Text>
-        </Pressable>
-        <Pressable onPress={() => setTab('downloaded')} style={styles.tab}>
-          <Text style={[styles.tabText, tab === 'downloaded' && styles.tabActive]}>
-            Downloaded · {offlineList.length}
-          </Text>
-        </Pressable>
-      </View>
-
+      {Tabs}
       <FlatList
         data={list}
         keyExtractor={(s) => s.id}
@@ -55,9 +189,46 @@ export default function LibraryScreen() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.bg, paddingTop: 12 },
-  tabs: { flexDirection: 'row', gap: 18, paddingHorizontal: 16, marginBottom: 6 },
-  tab: { paddingVertical: 6 },
-  tabText: { color: colors.muted, fontSize: 18, fontWeight: '800' },
+  tabs: { flexDirection: 'row', gap: 16, paddingHorizontal: 16, marginBottom: 8, flexWrap: 'wrap' },
+  tabText: { color: colors.muted, fontSize: 16, fontWeight: '800', paddingVertical: 6 },
   tabActive: { color: colors.text },
   empty: { color: colors.muted, textAlign: 'center', marginTop: 40, paddingHorizontal: 24 },
+  createRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, marginBottom: 8 },
+  input: {
+    flex: 1,
+    backgroundColor: colors.surface3,
+    color: colors.text,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+  },
+  createBtn: {
+    backgroundColor: colors.green,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  plRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.surface3,
+  },
+  plName: { color: colors.text, fontSize: 16, fontWeight: '600' },
+  plSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  detailHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  detailTitle: { color: colors.text, fontSize: 22, fontWeight: '800', flex: 1 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

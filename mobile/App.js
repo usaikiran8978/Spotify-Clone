@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { PreferencesProvider, usePreferences } from './src/context/PreferencesContext';
 import { DownloadsProvider } from './src/context/DownloadsContext';
+import { PlaylistsProvider } from './src/context/PlaylistsContext';
 import { PlayerProvider } from './src/context/PlayerContext';
 import MiniPlayer from './src/components/MiniPlayer';
 
@@ -86,12 +87,14 @@ export default function App() {
   return (
     <PreferencesProvider>
       <DownloadsProvider>
-        <PlayerProvider>
-          <SafeAreaView style={styles.safe}>
-            <StatusBar style="light" />
-            <Root />
-          </SafeAreaView>
-        </PlayerProvider>
+        <PlaylistsProvider>
+          <PlayerProvider>
+            <SafeAreaView style={styles.safe}>
+              <StatusBar style="light" />
+              <Root />
+            </SafeAreaView>
+          </PlayerProvider>
+        </PlaylistsProvider>
       </DownloadsProvider>
     </PreferencesProvider>
   );
