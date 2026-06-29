@@ -56,20 +56,39 @@ function mapSong(s) {
   };
 }
 
-// The API caps each page at 40 results, so fetch several pages in parallel to
-// surface many more songs (a popular query has hundreds).
-const PAGES = 4;
 
-async function fetchPage(query, page) {
+// Load (almost) all pages for a paginated endpoint. Reads `total` from the
+// first page, then fetches the rest in concurrency-limited batches so the free
+// API instance isn't overwhelmed. `maxPages` caps very large catalogues.
+async function loadAllPages(buildUrl, listKey, maxPages, concurrency = 8) {
+  const readList = (j) => {
+    const d = j?.data || {};
+    return d[listKey] || d.results || [];
+  };
+  let first;
   try {
-    const res = await fetch(
-      `${SAAVN_URL}/api/search/songs?query=${encodeURIComponent(query)}&page=${page}&limit=40`,
-    );
-    const json = await res.json();
-    return json?.data?.results || json?.data || [];
+    first = await fetch(buildUrl(0)).then((r) => r.json());
   } catch {
     return [];
   }
+  const list0 = readList(first);
+  const total = first?.data?.total || list0.length;
+  const pageSize = list0.length || 1;
+  const pageCount = Math.min(Math.ceil(total / pageSize), maxPages);
+  const out = [...list0];
+
+  for (let i = 1; i < pageCount; i += concurrency) {
+    const batch = await Promise.all(
+      Array.from({ length: Math.min(concurrency, pageCount - i) }, (_, k) =>
+        fetch(buildUrl(i + k))
+          .then((r) => r.json())
+          .then(readList)
+          .catch(() => []),
+      ),
+    );
+    for (const b of batch) out.push(...b);
+  }
+  return out;
 }
 
 // De-dupe a list of mapped songs by normalised title + duration.
@@ -107,25 +126,28 @@ export async function searchSaavnArtists(query) {
   }
 }
 
-export async function getArtistSongs(artistId, pages = 3) {
+export async function getArtistSongs(artistId) {
   if (!SAAVN_URL) return [];
-  const reqs = Array.from({ length: pages }, (_, p) =>
-    fetch(`${SAAVN_URL}/api/artists/${artistId}/songs?page=${p}`)
-      .then((r) => r.json())
-      .then((j) => j?.data?.songs || j?.data?.results || [])
-      .catch(() => []),
+  // Artist endpoint serves 10/page; load up to ~600 songs.
+  const all = await loadAllPages(
+    (p) => `${SAAVN_URL}/api/artists/${artistId}/songs?page=${p}`,
+    'songs',
+    60,
   );
-  const all = (await Promise.all(reqs)).flat();
   return dedupe(all.map(mapSong).filter((s) => s.audioUrl && s.title));
 }
 
 export async function searchSaavn(query) {
   if (!SAAVN_URL) return [];
-  const pages = await Promise.all(
-    Array.from({ length: PAGES }, (_, p) => fetchPage(query, p)),
+  // Load all result pages (40/page) up to a generous cap.
+  const all = await loadAllPages(
+    (p) =>
+      `${SAAVN_URL}/api/search/songs?query=${encodeURIComponent(query)}&page=${p}&limit=40`,
+    'results',
+    20,
   );
   // JioSaavn floods results with the same recording under many titles
   // (different albums / language tags / singer orderings) — dedupe collapses
   // them by normalised title + duration; genuinely different versions survive.
-  return dedupe(pages.flat().map(mapSong).filter((s) => s.audioUrl && s.title));
+  return dedupe(all.map(mapSong).filter((s) => s.audioUrl && s.title));
 }
