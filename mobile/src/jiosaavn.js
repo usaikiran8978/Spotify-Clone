@@ -17,6 +17,17 @@ const decode = (s) =>
 
 const pickLast = (arr) => (Array.isArray(arr) && arr.length ? arr[arr.length - 1] : null);
 
+// Normalise a title for de-duping: drop "(From …)" / "(feat …)" / "[…]" and
+// trailing "- Lyrical/Lo-Fi/…" noise so the same song matches across albums.
+const normTitle = (t) =>
+  String(t || '')
+    .toLowerCase()
+    .replace(/\((from|feat|with)[^)]*\)/g, '')
+    .replace(/\[[^\]]*\]/g, '')
+    .replace(/[-–—]\s*(from|feat|lyrical|lo-?fi|slowed|reverb).*$/i, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
 function mapSong(s) {
   const audio = pickLast(s.downloadUrl || s.download_url);
   const img = pickLast(s.image);
@@ -56,7 +67,7 @@ export async function searchSaavn(query) {
   const seen = new Set();
   const deduped = [];
   for (const s of mapped) {
-    const key = `${s.title.toLowerCase().trim()}|${s.duration}`;
+    const key = `${normTitle(s.title)}|${s.duration}`;
     if (seen.has(key)) continue;
     seen.add(key);
     deduped.push(s);
