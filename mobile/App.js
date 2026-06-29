@@ -9,6 +9,7 @@ import { DownloadsProvider } from './src/context/DownloadsContext';
 import { PlaylistsProvider } from './src/context/PlaylistsContext';
 import { PlayerProvider } from './src/context/PlayerContext';
 import MiniPlayer from './src/components/MiniPlayer';
+import UpdateGate from './src/components/UpdateGate';
 
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import HomeScreen from './src/screens/HomeScreen';
@@ -94,6 +95,7 @@ export default function App() {
               <SafeAreaView style={styles.safe}>
                 <StatusBar style="light" />
                 <Root />
+                <UpdateGate />
               </SafeAreaView>
             </PlayerProvider>
           </PlaylistsProvider>

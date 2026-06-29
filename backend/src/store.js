@@ -25,24 +25,30 @@ const DEFAULT_BRANDING = {
   accent: '#22C55E',
 };
 
+// Latest app release the mobile app self-updates to (Android APK).
+const DEFAULT_RELEASE = { version: '1.0.0', notes: '', updatedAt: null };
+const APK_FILE = path.join(__dirname, '..', 'uploads', 'app.apk');
+
 let impl; // set by init()
 
 // ---------------------------------------------------------------- JSON mode
 function jsonStore() {
   let songs;
   let branding = { ...DEFAULT_BRANDING };
+  let release = { ...DEFAULT_RELEASE };
   if (fs.existsSync(DB_FILE)) {
     try {
       const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
       songs = data.songs;
       if (data.branding) branding = { ...DEFAULT_BRANDING, ...data.branding };
+      if (data.release) release = { ...DEFAULT_RELEASE, ...data.release };
     } catch {
       songs = null;
     }
   }
   if (!Array.isArray(songs)) songs = [...SONGS];
   const persist = () =>
-    fs.writeFileSync(DB_FILE, JSON.stringify({ songs, branding }, null, 2));
+    fs.writeFileSync(DB_FILE, JSON.stringify({ songs, branding, release }, null, 2));
   persist();
 
   return {
@@ -53,6 +59,22 @@ function jsonStore() {
       branding = { ...branding, ...patch };
       persist();
       return branding;
+    },
+    async getRelease() {
+      return { ...release, hasApk: fs.existsSync(APK_FILE) };
+    },
+    async setRelease(patch) {
+      release = { ...release, ...patch, updatedAt: new Date().toISOString() };
+      persist();
+      return this.getRelease();
+    },
+    async saveApk(buffer) {
+      fs.mkdirSync(path.dirname(APK_FILE), { recursive: true });
+      fs.writeFileSync(APK_FILE, buffer);
+    },
+    async getApk() {
+      if (!fs.existsSync(APK_FILE)) return null;
+      return { stream: fs.createReadStream(APK_FILE), length: fs.statSync(APK_FILE).size };
     },
     async allSongs() {
       return songs;
@@ -111,12 +133,13 @@ function jsonStore() {
 
 // --------------------------------------------------------------- Mongo mode
 async function mongoStore() {
-  const { MongoClient } = await import('mongodb');
+  const { MongoClient, GridFSBucket } = await import('mongodb');
   const client = new MongoClient(process.env.MONGODB_URI);
   await client.connect();
   const db = client.db(process.env.MONGODB_DB || 'spotifyclone');
   const coll = db.collection('songs');
   const settings = db.collection('settings');
+  const apkBucket = new GridFSBucket(db, { bucketName: 'apk' });
   await coll.createIndex({ id: 1 }, { unique: true });
 
   // Seed once if empty.
@@ -143,6 +166,34 @@ async function mongoStore() {
         { upsert: true },
       );
       return value;
+    },
+    async getRelease() {
+      const doc = await settings.findOne({ _id: 'release' });
+      const hasApk = (await db.collection('apk.files').countDocuments()) > 0;
+      return { ...DEFAULT_RELEASE, ...(doc?.value || {}), hasApk };
+    },
+    async setRelease(patch) {
+      const cur = await this.getRelease();
+      const value = { ...cur, ...patch, updatedAt: new Date().toISOString() };
+      delete value.hasApk;
+      await settings.updateOne({ _id: 'release' }, { $set: { value } }, { upsert: true });
+      return this.getRelease();
+    },
+    async saveApk(buffer) {
+      // Replace any existing APK, then store the new one.
+      const old = await db.collection('apk.files').find({}).toArray();
+      for (const f of old) await apkBucket.delete(f._id).catch(() => {});
+      await new Promise((resolve, reject) => {
+        const up = apkBucket.openUploadStream('app.apk');
+        up.on('finish', resolve);
+        up.on('error', reject);
+        up.end(buffer);
+      });
+    },
+    async getApk() {
+      const file = await db.collection('apk.files').findOne({}, { sort: { uploadDate: -1 } });
+      if (!file) return null;
+      return { stream: apkBucket.openDownloadStream(file._id), length: file.length };
     },
     async allSongs() {
       return (await coll.find({}).toArray()).map(clean);
@@ -213,4 +264,8 @@ export const store = {
   addSongs: (...a) => impl.addSongs(...a),
   getBranding: (...a) => impl.getBranding(...a),
   setBranding: (...a) => impl.setBranding(...a),
+  getRelease: (...a) => impl.getRelease(...a),
+  setRelease: (...a) => impl.setRelease(...a),
+  saveApk: (...a) => impl.saveApk(...a),
+  getApk: (...a) => impl.getApk(...a),
 };

@@ -72,9 +72,42 @@ export default function App() {
   const [branding, setBranding] = useState(EMPTY_BRANDING);
   const [showBranding, setShowBranding] = useState(false);
 
+  // app release (self-update)
+  const [release, setRelease] = useState({ version: '', notes: '', hasApk: false });
+  const [showRelease, setShowRelease] = useState(false);
+  const [apkFile, setApkFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+
   useEffect(() => {
     api.branding().then(setBranding).catch(() => {});
+    api.release().then(setRelease).catch(() => {});
   }, []);
+
+  async function saveRelease() {
+    setError('');
+    setNotice('');
+    try {
+      if (apkFile) {
+        setUploading(true);
+        const saved = await api.uploadApk(apkFile, release.version);
+        setRelease(saved);
+        setApkFile(null);
+        setNotice(`APK uploaded · version ${saved.version}. Apps will update on next launch.`);
+      } else {
+        const saved = await api.updateRelease({
+          version: release.version,
+          notes: release.notes,
+        });
+        setRelease(saved);
+        setNotice(`Release set to ${saved.version}.`);
+      }
+      setShowRelease(false);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function saveBranding() {
     setError('');
@@ -269,6 +302,9 @@ export default function App() {
           <button className="ghost" onClick={() => setShowBranding((v) => !v)}>
             Branding
           </button>
+          <button className="ghost" onClick={() => setShowRelease((v) => !v)}>
+            App Release
+          </button>
           <button
             className="primary"
             onClick={() => importReal('audius')}
@@ -301,6 +337,53 @@ export default function App() {
 
       {error && <div className="error">⚠ {error}</div>}
       {notice && <div className="notice">✓ {notice}</div>}
+
+      {showRelease && (
+        <section className="card branding-panel">
+          <h2>App release · self-update</h2>
+          <p className="muted small">
+            Set the latest version and upload the Android APK. Installed apps check
+            this on launch and prompt to update when their version is lower. (Android
+            only — iOS updates go through the App Store.)
+          </p>
+          <p className="small">
+            Current published: <b>{release.version || '—'}</b>{' '}
+            {release.hasApk ? '· APK ready ✓' : '· no APK uploaded yet'}
+          </p>
+          <div className="branding-grid">
+            <label>
+              Version (e.g. 1.0.1)
+              <input
+                value={release.version}
+                onChange={(e) => setRelease({ ...release, version: e.target.value })}
+              />
+            </label>
+            <label>
+              Release notes
+              <input
+                value={release.notes}
+                onChange={(e) => setRelease({ ...release, notes: e.target.value })}
+              />
+            </label>
+            <label>
+              APK file (.apk)
+              <input
+                type="file"
+                accept=".apk,application/vnd.android.package-archive"
+                onChange={(e) => setApkFile(e.target.files?.[0] || null)}
+              />
+            </label>
+          </div>
+          <div className="actions">
+            <button className="primary" onClick={saveRelease} disabled={uploading}>
+              {uploading ? 'Uploading APK…' : apkFile ? 'Upload APK & publish' : 'Save version'}
+            </button>
+            <button className="ghost" onClick={() => setShowRelease(false)} disabled={uploading}>
+              Cancel
+            </button>
+          </div>
+        </section>
+      )}
 
       {showBranding && (
         <section className="card branding-panel">

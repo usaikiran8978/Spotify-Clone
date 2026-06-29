@@ -272,6 +272,62 @@ app.put(
   }),
 );
 
+// --- App self-update (Android APK) -------------------------------------
+const apkUrlFor = (req) => {
+  const proto = req.headers['x-forwarded-proto'] || req.protocol;
+  return `${proto}://${req.get('host')}/api/app/apk`;
+};
+
+// What the mobile app polls on launch to decide whether to update.
+app.get(
+  '/api/app/release',
+  h(async (req, res) => {
+    const rel = await store.getRelease();
+    ok(res, { ...rel, apkUrl: rel.hasApk ? apkUrlFor(req) : '' });
+  }),
+);
+
+// Admin: set version / release notes.
+app.put(
+  '/api/admin/release',
+  h(async (req, res) => {
+    const { version, notes } = req.body || {};
+    const patch = {};
+    if (version !== undefined) patch.version = String(version).trim().slice(0, 20);
+    if (notes !== undefined) patch.notes = String(notes).slice(0, 1000);
+    const rel = await store.setRelease(patch);
+    ok(res, { ...rel, apkUrl: rel.hasApk ? apkUrlFor(req) : '' });
+  }),
+);
+
+// Admin: upload the APK (raw binary body). Optional ?version= sets it too.
+app.post(
+  '/api/admin/apk',
+  express.raw({ type: () => true, limit: '300mb' }),
+  h(async (req, res) => {
+    if (!req.body || !req.body.length) {
+      return res.status(400).json({ ok: false, error: 'No APK uploaded' });
+    }
+    await store.saveApk(req.body);
+    if (req.query.version) await store.setRelease({ version: String(req.query.version).trim() });
+    const rel = await store.getRelease();
+    ok(res, { ...rel, apkUrl: apkUrlFor(req) });
+  }),
+);
+
+// Serve the stored APK to the app for install.
+app.get(
+  '/api/app/apk',
+  h(async (_req, res) => {
+    const apk = await store.getApk();
+    if (!apk) return res.status(404).json({ ok: false, error: 'No APK available' });
+    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    res.setHeader('Content-Length', apk.length);
+    res.setHeader('Content-Disposition', 'attachment; filename="melody.apk"');
+    apk.stream.on('error', () => res.destroy()).pipe(res);
+  }),
+);
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 4000;

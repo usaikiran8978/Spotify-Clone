@@ -16,6 +16,18 @@ export const api = {
   branding: () => req('/api/branding'),
   updateBranding: (patch) =>
     req('/api/admin/branding', { method: 'PUT', body: JSON.stringify(patch) }),
+  release: () => req('/api/app/release'),
+  updateRelease: (patch) =>
+    req('/api/admin/release', { method: 'PUT', body: JSON.stringify(patch) }),
+  uploadApk: async (file, version) => {
+    const res = await fetch(
+      `${BASE}/api/admin/apk?version=${encodeURIComponent(version || '')}`,
+      { method: 'POST', body: file },
+    );
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Upload failed');
+    return json.data;
+  },
   songs: (params = {}) => {
     const qs = new URLSearchParams(
       Object.entries(params).filter(([, v]) => v),
