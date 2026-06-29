@@ -28,7 +28,7 @@ const fmtCount = (n) =>
 export default function SearchScreen() {
   const { playSong } = usePlayer();
   const [query, setQuery] = useState('');
-  const [source, setSource] = useState('library'); // 'library' | 'audius'
+  const [source, setSource] = useState('audius'); // 'audius' (live) | 'library'
   const [audiusType, setAudiusType] = useState('songs'); // 'songs' | 'artists' | 'albums'
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
