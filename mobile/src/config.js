@@ -16,3 +16,9 @@ const localDefault =
 
 export const API_URL = ENV_URL || localDefault;
 export { LAN_IP };
+
+// JioSaavn API base URL for FULL-LENGTH songs (self-hosted instance of
+// sumitkolhe/jiosaavn-api). Set EXPO_PUBLIC_SAAVN_URL after deploying it, e.g.
+// "https://your-saavn-api.onrender.com". When unset, search falls back to
+// iTunes 30-second previews.
+export const SAAVN_URL = (process.env.EXPO_PUBLIC_SAAVN_URL || '').replace(/\/$/, '');

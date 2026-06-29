@@ -10,7 +10,8 @@
       },
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://spotify-clone-1-ln6l.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://spotify-clone-1-ln6l.onrender.com",
+        "EXPO_PUBLIC_SAAVN_URL": ""
       }
     },
     "production": {
@@ -18,7 +19,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://spotify-clone-1-ln6l.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://spotify-clone-1-ln6l.onrender.com",
+        "EXPO_PUBLIC_SAAVN_URL": ""
       }
     }
   },

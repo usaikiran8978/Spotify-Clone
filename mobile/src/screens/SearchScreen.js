@@ -10,11 +10,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import SongRow from '../components/SongRow';
 import { searchItunes } from '../itunes';
+import { searchSaavn, saavnEnabled } from '../jiosaavn';
 import { usePlayer } from '../context/PlayerContext';
 import { colors } from '../theme';
 
-// Live search against Apple Music's catalogue (free, keyless) — covers Telugu /
-// Hindi / Tamil / English songs with playable previews.
+// Full-length songs via a self-hosted JioSaavn API when configured
+// (EXPO_PUBLIC_SAAVN_URL); otherwise live Apple Music 30s previews.
+const fullSongs = saavnEnabled();
+
 export default function SearchScreen() {
   const { playSong } = usePlayer();
   const [query, setQuery] = useState('');
@@ -30,9 +33,12 @@ export default function SearchScreen() {
     }
     setLoading(true);
     const id = setTimeout(() => {
-      searchItunes(term)
+      const run = fullSongs ? searchSaavn(term) : searchItunes(term);
+      run
+        // If the JioSaavn instance is unreachable, fall back to previews.
+        .then((r) => (r.length || !fullSongs ? r : searchItunes(term)))
         .then(setResults)
-        .catch(() => setResults([]))
+        .catch(() => searchItunes(term).then(setResults).catch(() => setResults([])))
         .finally(() => setLoading(false));
     }, 350);
     return () => clearTimeout(id);
