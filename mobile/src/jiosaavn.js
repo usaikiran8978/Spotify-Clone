@@ -17,13 +17,18 @@ const decode = (s) =>
 
 const pickLast = (arr) => (Array.isArray(arr) && arr.length ? arr[arr.length - 1] : null);
 
-// Normalise a title for de-duping: drop "(From …)" / "(feat …)" / "[…]" and
-// trailing "- Lyrical/Lo-Fi/…" noise so the same song matches across albums.
+// Normalise a title for de-duping. JioSaavn returns the same recording under
+// many titles — "(From "Movie")", "- Telugu/Hindi/…" language tags, "(107 BPM)",
+// "feat …" — so strip all that. Paired with duration, identical recordings
+// collapse while genuinely different versions (different length) survive.
 const normTitle = (t) =>
   String(t || '')
     .toLowerCase()
-    .replace(/\((from|feat|with)[^)]*\)/g, '')
+    .replace(/&quot;|&amp;|&#0?39;/g, ' ')
+    .replace(/\((from|feat|with)[^)]*\)/gi, '')
     .replace(/\[[^\]]*\]/g, '')
+    .replace(/\(\d+\s*bpm\)/gi, '')
+    .replace(/\b(telugu|hindi|tamil|kannada|malayalam)\b/gi, '')
     .replace(/[-–—]\s*(from|feat|lyrical|lo-?fi|slowed|reverb).*$/i, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
