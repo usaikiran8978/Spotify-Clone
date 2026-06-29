@@ -12,6 +12,39 @@ const EMPTY = {
   coverUrl: '',
 };
 
+// Display order + labels for the category facet types.
+const TYPE_ORDER = ['language', 'decade', 'festival', 'genre', 'mood', 'artist', 'movie'];
+const TYPE_LABELS = {
+  language: 'Languages',
+  decade: 'Decades',
+  festival: 'Festivals',
+  genre: 'Genres',
+  mood: 'Moods',
+  artist: 'Singers',
+  movie: 'Movies',
+};
+
+// Group categories by type, ordered by TYPE_ORDER, each group sorted by
+// popularity (count) then name. Returns [{ type, label, items }].
+function groupCategories(categories) {
+  const byType = {};
+  for (const c of categories) {
+    const t = c.type || 'genre';
+    (byType[t] ||= []).push(c);
+  }
+  const types = [
+    ...TYPE_ORDER.filter((t) => byType[t]),
+    ...Object.keys(byType).filter((t) => !TYPE_ORDER.includes(t)),
+  ];
+  return types.map((t) => ({
+    type: t,
+    label: TYPE_LABELS[t] || t,
+    items: byType[t].sort(
+      (a, b) => (b.count || 0) - (a.count || 0) || a.name.localeCompare(b.name),
+    ),
+  }));
+}
+
 export default function App() {
   const [languages, setLanguages] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -67,6 +100,8 @@ export default function App() {
     songs.forEach((s) => (byLang[s.language] = (byLang[s.language] || 0) + 1));
     return byLang;
   }, [songs]);
+
+  const groupedCategories = useMemo(() => groupCategories(categories), [categories]);
 
   function startEdit(song) {
     setEditingId(song.id);
@@ -307,18 +342,23 @@ export default function App() {
 
             <div className="cats">
               <span className="cats-label">Categories</span>
-              <div className="chips">
-                {categories.map((c) => (
-                  <button
-                    type="button"
-                    key={c.slug}
-                    className={`chip ${form.categories.includes(c.slug) ? 'on' : ''}`}
-                    onClick={() => toggleCategory(c.slug)}
-                  >
-                    {c.name}
-                  </button>
-                ))}
-              </div>
+              {groupedCategories.map((group) => (
+                <div className="cat-group" key={group.type}>
+                  <span className="cat-group-label">{group.label}</span>
+                  <div className="chips">
+                    {group.items.map((c) => (
+                      <button
+                        type="button"
+                        key={c.slug}
+                        className={`chip ${form.categories.includes(c.slug) ? 'on' : ''}`}
+                        onClick={() => toggleCategory(c.slug)}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div className="actions">
@@ -368,10 +408,15 @@ export default function App() {
                 disabled={latestOnly}
               >
                 <option value="">All categories</option>
-                {categories.map((c) => (
-                  <option key={c.slug} value={c.slug}>
-                    {c.name}
-                  </option>
+                {groupedCategories.map((group) => (
+                  <optgroup key={group.type} label={group.label}>
+                    {group.items.map((c) => (
+                      <option key={c.slug} value={c.slug}>
+                        {c.name}
+                        {c.count ? ` (${c.count})` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
               <input

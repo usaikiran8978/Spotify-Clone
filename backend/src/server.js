@@ -3,23 +3,55 @@ import cors from 'cors';
 import { customAlphabet } from 'nanoid';
 import { store } from './store.js';
 import { importCatalogue, importFromAudius } from './importer.js';
-import { nameFor, categoryType } from './categories.js';
+import {
+  nameFor,
+  categoryType,
+  SINGER_PREFIX,
+  MOVIE_PREFIX,
+} from './categories.js';
+
+// Resolve a slug's display name, preferring the ORIGINAL text carried on the
+// song (real artist for singer facets, real film name for movie facets) and
+// falling back to the slug-derived name.
+const displayName = (slug, song) => {
+  if (slug.startsWith(SINGER_PREFIX) && song?.artist) return song.artist;
+  if (slug.startsWith(MOVIE_PREFIX) && song?.movie) return song.movie;
+  return nameFor(slug);
+};
 
 // Categories = the seed reference list + any new slug that appears on songs
-// (e.g. a genre discovered during import). New types become categories
-// automatically; existing ones are reused.
+// (e.g. a genre discovered during import, or a singer/movie/festival facet).
+// New types become categories automatically; existing ones are reused.
+// `count` lets callers rank facets (e.g. show the biggest singers first).
 async function computeCategories() {
   const songs = await store.allSongs();
   const base = store.categories;
   const baseSlugs = new Set(base.map((c) => c.slug));
+  const baseCounts = new Map(base.map((c) => [c.slug, 0]));
   const extra = new Map();
   for (const s of songs) {
     for (const slug of s.categories || []) {
-      if (!slug || baseSlugs.has(slug) || extra.has(slug)) continue;
-      extra.set(slug, { slug, name: nameFor(slug), type: categoryType(slug) });
+      if (!slug) continue;
+      if (baseSlugs.has(slug)) {
+        baseCounts.set(slug, (baseCounts.get(slug) || 0) + 1);
+        continue;
+      }
+      if (extra.has(slug)) {
+        extra.get(slug).count++;
+        continue;
+      }
+      extra.set(slug, {
+        slug,
+        name: displayName(slug, s),
+        type: categoryType(slug),
+        count: 1,
+      });
     }
   }
-  return [...base, ...extra.values()];
+  return [
+    ...base.map((c) => ({ ...c, count: baseCounts.get(c.slug) || 0 })),
+    ...extra.values(),
+  ];
 }
 
 const nanoid = customAlphabet('1234567890abcdefghijklmnopqrstuvwxyz', 10);
@@ -95,8 +127,29 @@ app.get(
       .filter((s) => !language || s.language === language)
       .slice(0, 12);
 
-    const categories = await computeCategories();
+    // Singers and movies are high-cardinality facets (one per artist/film).
+    // Showing a shelf for every one would flood the home screen, so cap how
+    // many of each appear here — the biggest first. They remain fully
+    // browsable via /api/categories and filterable via /api/songs.
+    const HOME_FACET_CAP = { artist: 12, movie: 12 };
+    const facetSeen = { artist: 0, movie: 0 };
+
+    const categories = await computeCategories()
+      .then((cats) =>
+        cats
+          .slice()
+          // rank facets by popularity so the top singers/movies surface
+          .sort((a, b) => (b.count || 0) - (a.count || 0)),
+      );
+
     const shelves = categories
+      .filter((c) => {
+        const cap = HOME_FACET_CAP[c.type];
+        if (cap == null) return true;
+        if (facetSeen[c.type] >= cap) return false;
+        facetSeen[c.type]++;
+        return true;
+      })
       .map((c) => ({
         slug: c.slug,
         name: c.name,

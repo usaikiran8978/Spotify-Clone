@@ -6,31 +6,59 @@
 // fixed list). Any new genre becomes a new category automatically — see
 // categories.js + the server's computeCategories().
 import { customAlphabet } from 'nanoid';
-import { genreToSlug, isNonMusicGenre } from './categories.js';
+import {
+  genreToSlug,
+  isNonMusicGenre,
+  singerSlug,
+  movieFacet,
+  festivalSlugs,
+} from './categories.js';
 
 const nanoid = customAlphabet('1234567890abcdefghijklmnopqrstuvwxyz', 10);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Decade slugs aligned with the seed reference categories (90s, 2000s, …).
+// Decade slug from the song's REAL release year, matching the existing slug
+// convention: 1900s decades use two digits ('80s', '90s'); 2000+ use the full
+// year ('2000s', '2010s', '2020s').
 const decadeCats = (year) => {
-  if (!year) return [];
-  if (year >= 1980 && year < 1990) return ['80s'];
-  if (year >= 1990 && year < 2000) return ['90s'];
-  if (year >= 2000 && year < 2010) return ['2000s'];
-  if (year >= 2010 && year < 2020) return ['2010s'];
-  if (year >= 2020 && year < 2030) return ['2020s'];
-  return [];
+  if (!year || year < 1950 || year >= 2030) return [];
+  const d = Math.floor(year / 10) * 10; // 1994 -> 1990
+  return [d < 2000 ? `${d % 100}s` : `${d}s`];
 };
 
-// Build a song's category list from language + query mood tags + real genre +
-// decade. De-duplicated, empties stripped.
-const buildCats = ({ language, moodCats = [], genre, year }) => {
+// Build the full category list for a song from its ORIGINAL data:
+//   language + real genre + real decade + detected festival(s) +
+//   singer (real artist) + movie (real film/album) + query mood tags.
+// Returns { categories, movie } — movie is the clean film name (or '').
+const buildCats = ({
+  language,
+  moodCats = [],
+  genre,
+  year,
+  artist,
+  album,
+  title,
+}) => {
   const genreSlug = genreToSlug(genre);
-  return [
+  const singer = singerSlug(artist);
+  const isMovie = moodCats.includes('movie');
+  const movie = movieFacet({ album, language, genre, isMovie });
+  const festivals = festivalSlugs(`${title || ''} ${album || ''} ${moodCats.join(' ')}`);
+
+  const categories = [
     ...new Set(
-      [language, ...moodCats, genreSlug, ...decadeCats(year)].filter(Boolean),
+      [
+        language,
+        ...moodCats,
+        genreSlug,
+        ...decadeCats(year),
+        ...festivals,
+        singer,
+        movie?.slug,
+      ].filter(Boolean),
     ),
   ];
+  return { categories, movie: movie?.name || '' };
 };
 
 const key = (title, artist) => `${title}|${artist}`.trim().toLowerCase();
@@ -91,6 +119,31 @@ const ITUNES_QUERIES = [
   { term: 'kannada hit songs', language: 'kannada', country: 'IN', cats: ['kannada'] },
   { term: 'kannada movie songs', language: 'kannada', country: 'IN', cats: ['kannada', 'movie'] },
   { term: 'kannada love songs', language: 'kannada', country: 'IN', cats: ['kannada', 'love'] },
+  // ---- Malayalam ----
+  { term: 'malayalam hit songs', language: 'malayalam', country: 'IN', cats: ['malayalam'] },
+  { term: 'malayalam movie songs', language: 'malayalam', country: 'IN', cats: ['malayalam', 'movie'] },
+  { term: 'malayalam melody songs', language: 'malayalam', country: 'IN', cats: ['malayalam', 'love'] },
+  // ---- Punjabi ----
+  { term: 'punjabi hit songs', language: 'punjabi', country: 'IN', cats: ['punjabi'] },
+  { term: 'punjabi bhangra dj', language: 'punjabi', country: 'IN', cats: ['punjabi', 'dj', 'party'] },
+  { term: 'punjabi love songs', language: 'punjabi', country: 'IN', cats: ['punjabi', 'love'] },
+  // ---- Singer-focused (ensures popular playback singers are present) ----
+  { term: 'sp balasubrahmanyam hits', language: 'telugu', country: 'IN', cats: ['telugu'] },
+  { term: 'ghantasala hits', language: 'telugu', country: 'IN', cats: ['telugu'] },
+  { term: 'sid sriram telugu', language: 'telugu', country: 'IN', cats: ['telugu', 'love'] },
+  { term: 'arijit singh hits', language: 'hindi', country: 'IN', cats: ['hindi'] },
+  { term: 'lata mangeshkar hits', language: 'hindi', country: 'IN', cats: ['hindi'] },
+  { term: 'kishore kumar hits', language: 'hindi', country: 'IN', cats: ['hindi'] },
+  { term: 'ar rahman tamil', language: 'tamil', country: 'IN', cats: ['tamil'] },
+  { term: 'anirudh hits', language: 'tamil', country: 'IN', cats: ['tamil'] },
+  // ---- Festival specials (tagged from title/album text automatically) ----
+  { term: 'sankranthi pongal songs', language: 'telugu', country: 'IN', cats: ['telugu'] },
+  { term: 'diwali deepavali songs', language: 'hindi', country: 'IN', cats: ['hindi'] },
+  { term: 'holi songs bollywood', language: 'hindi', country: 'IN', cats: ['hindi'] },
+  { term: 'navratri garba dandiya', language: 'hindi', country: 'IN', cats: ['hindi'] },
+  { term: 'ganesh chaturthi songs', language: 'hindi', country: 'IN', cats: ['hindi'] },
+  { term: 'christmas songs', language: 'english', country: 'US', cats: [] },
+  { term: 'new year party songs', language: 'english', country: 'US', cats: ['party'] },
 ];
 
 const bigArt = (url) =>
@@ -135,18 +188,24 @@ export async function importCatalogue({ perTerm = 50 } = {}) {
       seen.add(k);
 
       const year = r.releaseDate ? new Date(r.releaseDate).getFullYear() : undefined;
+      const album = r.collectionName || `${r.artistName} • Single`;
+      const { categories, movie } = buildCats({
+        language: q.language,
+        moodCats: q.cats,
+        genre: r.primaryGenreName,
+        year,
+        artist: r.artistName,
+        album,
+        title: r.trackName,
+      });
       songs.push({
         id: nanoid(),
         title: r.trackName,
         artist: r.artistName,
-        album: r.collectionName || `${r.artistName} • Single`,
+        album,
         language: q.language,
-        categories: buildCats({
-          language: q.language,
-          moodCats: q.cats,
-          genre: r.primaryGenreName,
-          year,
-        }),
+        categories,
+        movie,
         year: year || new Date().getFullYear(),
         duration: r.trackTimeMillis ? Math.round(r.trackTimeMillis / 1000) : 30,
         audioUrl: r.previewUrl,
@@ -210,18 +269,24 @@ function mapAudiusTrack(t, q, seen) {
 
   const dateStr = t.release_date || t.created_at;
   const year = dateStr ? new Date(dateStr).getFullYear() : undefined;
+  const album = t.album || `${artist} • Audius`;
+  const { categories, movie } = buildCats({
+    language: q.language,
+    moodCats: q.cats,
+    genre: t.genre,
+    year,
+    artist,
+    album,
+    title: t.title,
+  });
   return {
     id: nanoid(),
     title: t.title,
     artist,
-    album: t.album || `${artist} • Audius`,
+    album,
     language: q.language,
-    categories: buildCats({
-      language: q.language,
-      moodCats: q.cats,
-      genre: t.genre,
-      year,
-    }),
+    categories,
+    movie,
     year: year || new Date().getFullYear(),
     duration: t.duration || 0,
     audioUrl: `${AUDIUS_GATEWAY}/v1/tracks/${t.id}/stream?app_name=${APP}`,

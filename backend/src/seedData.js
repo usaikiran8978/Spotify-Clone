@@ -8,6 +8,8 @@ export const LANGUAGES = [
   { code: 'english', label: 'English' },
   { code: 'tamil', label: 'Tamil' },
   { code: 'kannada', label: 'Kannada' },
+  { code: 'malayalam', label: 'Malayalam' },
+  { code: 'punjabi', label: 'Punjabi' },
 ];
 
 // type drives how the mobile app groups the shelves on the home screen.
@@ -20,6 +22,9 @@ export const CATEGORIES = [
   { slug: 'hindi', name: 'Hindi', type: 'language' },
   { slug: 'english', name: 'English', type: 'language' },
   { slug: 'tamil', name: 'Tamil', type: 'language' },
+  { slug: 'kannada', name: 'Kannada', type: 'language' },
+  { slug: 'malayalam', name: 'Malayalam', type: 'language' },
+  { slug: 'punjabi', name: 'Punjabi', type: 'language' },
   { slug: 'sankranthi', name: 'Sankranthi Special', type: 'festival' },
   { slug: 'dj', name: 'DJ / Remix', type: 'mood' },
   { slug: 'friendship', name: 'Friendship', type: 'mood' },
