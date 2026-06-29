@@ -56,7 +56,7 @@ export default function SearchScreen() {
 
   function openArtist(artist) {
     setLoading(true);
-    getArtistSongs(artist.id)
+    getArtistSongs(artist.id, artist.name)
       .then((songs) => setDetail({ title: artist.name, songs }))
       .catch(() => setDetail({ title: artist.name, songs: [] }))
       .finally(() => setLoading(false));

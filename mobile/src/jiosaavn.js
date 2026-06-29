@@ -126,7 +126,7 @@ export async function searchSaavnArtists(query) {
   }
 }
 
-export async function getArtistSongs(artistId) {
+export async function getArtistSongs(artistId, artistName) {
   if (!SAAVN_URL) return [];
   // Artist endpoint serves 10/page; load up to ~600 songs.
   const all = await loadAllPages(
@@ -134,7 +134,12 @@ export async function getArtistSongs(artistId) {
     'songs',
     60,
   );
-  return dedupe(all.map(mapSong).filter((s) => s.audioUrl && s.title));
+  const songs = dedupe(all.map(mapSong).filter((s) => s.audioUrl && s.title));
+  // Some artists (e.g. international names) have a JioSaavn profile but no
+  // catalogue under it. Fall back to a song search by name so tapping the
+  // artist isn't a dead-end (surfaces matching/cover tracks that do exist).
+  if (songs.length === 0 && artistName) return searchSaavn(artistName);
+  return songs;
 }
 
 export async function searchSaavn(query) {
