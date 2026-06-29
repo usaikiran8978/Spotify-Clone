@@ -47,7 +47,19 @@ export async function searchSaavn(query) {
   );
   const json = await res.json();
   const results = json?.data?.results || json?.data || [];
-  return results
-    .map(mapSong)
-    .filter((s) => s.audioUrl && s.title);
+  const mapped = results.map(mapSong).filter((s) => s.audioUrl && s.title);
+
+  // JioSaavn floods results with the same song across many albums (dozens of
+  // different ids, same title, slightly varying artist strings). Collapse by
+  // title + duration — the same song always shares both, while genuinely
+  // different songs differ in one. Keep the first (most relevant) occurrence.
+  const seen = new Set();
+  const deduped = [];
+  for (const s of mapped) {
+    const key = `${s.title.toLowerCase().trim()}|${s.duration}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(s);
+  }
+  return deduped;
 }
