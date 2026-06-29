@@ -254,6 +254,24 @@ app.post(
   }),
 );
 
+// --- Branding (admin-editable, fetched by the app at runtime) ----------
+app.get(
+  '/api/branding',
+  h(async (_req, res) => ok(res, await store.getBranding())),
+);
+app.put(
+  '/api/admin/branding',
+  h(async (req, res) => {
+    const { appName, tagline, logoUrl, accent } = req.body || {};
+    const patch = {};
+    if (appName !== undefined) patch.appName = String(appName).slice(0, 40);
+    if (tagline !== undefined) patch.tagline = String(tagline).slice(0, 80);
+    if (logoUrl !== undefined) patch.logoUrl = String(logoUrl);
+    if (accent !== undefined) patch.accent = String(accent).slice(0, 20);
+    ok(res, await store.setBranding(patch));
+  }),
+);
+
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 4000;

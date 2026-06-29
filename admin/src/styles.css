@@ -1,5 +1,5 @@
 :root {
-  --green: #1db954;
+  --green: #22C55E;
   --bg: #121212;
   --panel: #181818;
   --panel2: #1f1f1f;
@@ -134,6 +134,11 @@ td { padding: 8px; border-bottom: 1px solid var(--line); font-size: 14px; vertic
 .muted { color: var(--muted); }
 .error { background: #3a1a1a; color: #f0726f; padding: 12px 28px; }
 .notice { background: #16331f; color: #4ade80; padding: 12px 28px; }
+.brand-sub { color: var(--muted, #9aa0a6); font-weight: 600; font-size: 13px; }
+.small { font-size: 12px; }
+.branding-panel { margin: 16px 28px 0; }
+.branding-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+.branding-panel label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
 .topbar-actions button:disabled { opacity: 0.6; cursor: not-allowed; }
 .ghost.danger { color: #f0726f; border-color: #5a2a2a; }

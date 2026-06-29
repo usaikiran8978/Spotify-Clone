@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Spotify Clone",
+    "name": "Melody",
     "slug": "spotify-clone",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,8 +16,8 @@
       "bundleIdentifier": "com.demo.spotifyclone",
       "infoPlist": {
         "UIBackgroundModes": ["audio"],
-        "NSPhotoLibraryAddUsageDescription": "Allow Spotify Clone to save downloaded songs to your device.",
-        "NSPhotoLibraryUsageDescription": "Allow Spotify Clone to save downloaded songs to your device."
+        "NSPhotoLibraryAddUsageDescription": "Allow Melody to save downloaded songs to your device.",
+        "NSPhotoLibraryUsageDescription": "Allow Melody to save downloaded songs to your device."
       }
     },
     "android": {
@@ -36,8 +36,8 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow Spotify Clone to save downloaded songs to your device.",
-          "savePhotosPermission": "Allow Spotify Clone to save downloaded songs to your device.",
+          "photosPermission": "Allow Melody to save downloaded songs to your device.",
+          "savePhotosPermission": "Allow Melody to save downloaded songs to your device.",
           "isAccessMediaLocationEnabled": false
         }
       ]

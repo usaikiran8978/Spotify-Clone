@@ -15,6 +15,7 @@ const qs = (params) => {
 export const api = {
   languages: () => req('/api/languages'),
   categories: () => req('/api/categories'),
+  branding: () => req('/api/branding'),
   home: (language) => req(`/api/home${qs({ language })}`),
   latest: (language) => req(`/api/songs/latest${qs({ language })}`),
   songs: (params) => req(`/api/songs${qs(params)}`),

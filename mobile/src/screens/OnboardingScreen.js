@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { api } from '../api';
 import { usePreferences } from '../context/PreferencesContext';
+import { useBranding } from '../context/BrandingContext';
 import { colors, accentFor } from '../theme';
 
 export default function OnboardingScreen() {
   const { setLanguage } = usePreferences();
+  const branding = useBranding();
   const [languages, setLanguages] = useState([]);
 
   useEffect(() => {
@@ -14,7 +16,15 @@ export default function OnboardingScreen() {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.logo}>● Spotify Clone</Text>
+      <View style={styles.brandRow}>
+        {branding.logoUrl ? (
+          <Image source={{ uri: branding.logoUrl }} style={styles.brandLogo} />
+        ) : null}
+        <Text style={[styles.logo, { color: branding.accent || colors.green }]}>
+          {branding.appName}
+        </Text>
+      </View>
+      <Text style={styles.tagline}>{branding.tagline}</Text>
       <Text style={styles.h1}>What do you want to listen to?</Text>
       <Text style={styles.sub}>Pick your preferred language. You can change it anytime.</Text>
 
@@ -39,7 +49,10 @@ export default function OnboardingScreen() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.bg, padding: 24, paddingTop: 80 },
-  logo: { color: colors.green, fontSize: 18, fontWeight: '800', marginBottom: 40 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  brandLogo: { width: 34, height: 34, borderRadius: 8 },
+  logo: { color: colors.green, fontSize: 24, fontWeight: '900' },
+  tagline: { color: colors.muted, fontSize: 14, marginTop: 6, marginBottom: 36 },
   h1: { color: colors.text, fontSize: 28, fontWeight: '800' },
   sub: { color: colors.muted, fontSize: 14, marginTop: 8, marginBottom: 28 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },

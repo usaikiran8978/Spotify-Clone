@@ -1,7 +1,7 @@
 {
   "name": "spotify-clone-backend",
   "version": "1.0.0",
-  "description": "Song API for the Spotify clone mobile app and admin panel",
+  "description": "Song API for the Melody mobile app and admin panel",
   "type": "module",
   "main": "src/server.js",
   "engines": {

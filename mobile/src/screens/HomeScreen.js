@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -11,6 +12,7 @@ import {
 import Shelf from '../components/Shelf';
 import { api } from '../api';
 import { usePreferences } from '../context/PreferencesContext';
+import { useBranding } from '../context/BrandingContext';
 import { colors } from '../theme';
 
 const greeting = () => {
@@ -22,6 +24,7 @@ const greeting = () => {
 
 export default function HomeScreen({ onOpenSettings }) {
   const { language, setLanguage } = usePreferences();
+  const branding = useBranding();
   const [data, setData] = useState(null);
   const [languages, setLanguages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +73,14 @@ export default function HomeScreen({ onOpenSettings }) {
         />
       }
     >
+      <View style={styles.brandRow}>
+        {branding.logoUrl ? (
+          <Image source={{ uri: branding.logoUrl }} style={styles.brandLogo} />
+        ) : null}
+        <Text style={[styles.brandName, { color: branding.accent || colors.green }]}>
+          {branding.appName}
+        </Text>
+      </View>
       <View style={styles.header}>
         <Text style={styles.greeting}>{greeting()}</Text>
         <Pressable onPress={onOpenSettings}>
@@ -125,6 +136,15 @@ function Chip({ label, active, onPress }) {
 const styles = StyleSheet.create({
   wrap: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+  },
+  brandLogo: { width: 26, height: 26, borderRadius: 6 },
+  brandName: { fontSize: 20, fontWeight: '900', letterSpacing: 0.3 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

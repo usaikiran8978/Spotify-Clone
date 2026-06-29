@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from './api.js';
+import MelodyLogo from './MelodyLogo.jsx';
+
+const EMPTY_BRANDING = { appName: 'Melody', tagline: '', logoUrl: '', accent: '#22C55E' };
 
 const EMPTY = {
   title: '',
@@ -64,6 +67,27 @@ export default function App() {
   // editor
   const [form, setForm] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);
+
+  // branding
+  const [branding, setBranding] = useState(EMPTY_BRANDING);
+  const [showBranding, setShowBranding] = useState(false);
+
+  useEffect(() => {
+    api.branding().then(setBranding).catch(() => {});
+  }, []);
+
+  async function saveBranding() {
+    setError('');
+    setNotice('');
+    try {
+      const saved = await api.updateBranding(branding);
+      setBranding(saved);
+      setNotice('Branding saved — the mobile app picks it up on next launch.');
+      setShowBranding(false);
+    } catch (e) {
+      setError(e.message);
+    }
+  }
 
   async function refresh() {
     setLoading(true);
@@ -236,9 +260,15 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <span className="logo">●</span> Spotify Clone · Admin
+          <MelodyLogo size={28} />
+          <span>
+            {branding.appName || 'Melody'} <span className="brand-sub">Admin</span>
+          </span>
         </div>
         <div className="topbar-actions">
+          <button className="ghost" onClick={() => setShowBranding((v) => !v)}>
+            Branding
+          </button>
           <button
             className="primary"
             onClick={() => importReal('audius')}
@@ -271,6 +301,56 @@ export default function App() {
 
       {error && <div className="error">⚠ {error}</div>}
       {notice && <div className="notice">✓ {notice}</div>}
+
+      {showBranding && (
+        <section className="card branding-panel">
+          <h2>App branding (live)</h2>
+          <p className="muted small">
+            Controls the in-app logo, name &amp; accent the mobile app shows. Updates
+            without an app rebuild. (The phone home-screen icon still needs a store
+            build — that can’t change over the air.)
+          </p>
+          <div className="branding-grid">
+            <label>
+              App name
+              <input
+                value={branding.appName}
+                onChange={(e) => setBranding({ ...branding, appName: e.target.value })}
+              />
+            </label>
+            <label>
+              Tagline
+              <input
+                value={branding.tagline}
+                onChange={(e) => setBranding({ ...branding, tagline: e.target.value })}
+              />
+            </label>
+            <label>
+              Logo image URL
+              <input
+                placeholder="https://…/logo.png"
+                value={branding.logoUrl}
+                onChange={(e) => setBranding({ ...branding, logoUrl: e.target.value })}
+              />
+            </label>
+            <label>
+              Accent color
+              <input
+                value={branding.accent}
+                onChange={(e) => setBranding({ ...branding, accent: e.target.value })}
+              />
+            </label>
+          </div>
+          <div className="actions">
+            <button className="primary" onClick={saveBranding}>
+              Save branding
+            </button>
+            <button className="ghost" onClick={() => setShowBranding(false)}>
+              Cancel
+            </button>
+          </div>
+        </section>
+      )}
 
       <div className="layout">
         {/* ---- Editor ---- */}

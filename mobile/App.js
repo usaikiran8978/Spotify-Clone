@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
 import { PreferencesProvider, usePreferences } from './src/context/PreferencesContext';
+import { BrandingProvider } from './src/context/BrandingContext';
 import { DownloadsProvider } from './src/context/DownloadsContext';
 import { PlaylistsProvider } from './src/context/PlaylistsContext';
 import { PlayerProvider } from './src/context/PlayerContext';
@@ -86,16 +87,18 @@ function Root() {
 export default function App() {
   return (
     <PreferencesProvider>
-      <DownloadsProvider>
-        <PlaylistsProvider>
+      <BrandingProvider>
+        <DownloadsProvider>
+          <PlaylistsProvider>
           <PlayerProvider>
-            <SafeAreaView style={styles.safe}>
-              <StatusBar style="light" />
-              <Root />
-            </SafeAreaView>
-          </PlayerProvider>
-        </PlaylistsProvider>
-      </DownloadsProvider>
+              <SafeAreaView style={styles.safe}>
+                <StatusBar style="light" />
+                <Root />
+              </SafeAreaView>
+            </PlayerProvider>
+          </PlaylistsProvider>
+        </DownloadsProvider>
+      </BrandingProvider>
     </PreferencesProvider>
   );
 }

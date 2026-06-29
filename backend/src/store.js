@@ -16,23 +16,44 @@ const useMongo = !!process.env.MONGODB_URI;
 // De-dupe key for bulk imports — same title+artist is treated as one song.
 const dupeKey = (s) => `${s.title}|${s.artist}`.trim().toLowerCase();
 
+// Admin-editable branding the mobile app fetches at runtime. Changing this in
+// the admin panel re-brands the app live (in-app logo/name) without a rebuild.
+const DEFAULT_BRANDING = {
+  appName: 'Melody',
+  tagline: 'Play the music you love',
+  logoUrl: '',
+  accent: '#22C55E',
+};
+
 let impl; // set by init()
 
 // ---------------------------------------------------------------- JSON mode
 function jsonStore() {
   let songs;
+  let branding = { ...DEFAULT_BRANDING };
   if (fs.existsSync(DB_FILE)) {
     try {
-      songs = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8')).songs;
+      const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+      songs = data.songs;
+      if (data.branding) branding = { ...DEFAULT_BRANDING, ...data.branding };
     } catch {
       songs = null;
     }
   }
   if (!Array.isArray(songs)) songs = [...SONGS];
-  const persist = () => fs.writeFileSync(DB_FILE, JSON.stringify({ songs }, null, 2));
+  const persist = () =>
+    fs.writeFileSync(DB_FILE, JSON.stringify({ songs, branding }, null, 2));
   persist();
 
   return {
+    async getBranding() {
+      return branding;
+    },
+    async setBranding(patch) {
+      branding = { ...branding, ...patch };
+      persist();
+      return branding;
+    },
     async allSongs() {
       return songs;
     },
@@ -95,6 +116,7 @@ async function mongoStore() {
   await client.connect();
   const db = client.db(process.env.MONGODB_DB || 'spotifyclone');
   const coll = db.collection('songs');
+  const settings = db.collection('settings');
   await coll.createIndex({ id: 1 }, { unique: true });
 
   // Seed once if empty.
@@ -108,6 +130,20 @@ async function mongoStore() {
   };
 
   return {
+    async getBranding() {
+      const doc = await settings.findOne({ _id: 'branding' });
+      return { ...DEFAULT_BRANDING, ...(doc?.value || {}) };
+    },
+    async setBranding(patch) {
+      const current = await this.getBranding();
+      const value = { ...current, ...patch };
+      await settings.updateOne(
+        { _id: 'branding' },
+        { $set: { value } },
+        { upsert: true },
+      );
+      return value;
+    },
     async allSongs() {
       return (await coll.find({}).toArray()).map(clean);
     },
@@ -175,4 +211,6 @@ export const store = {
   clearSongs: (...a) => impl.clearSongs(...a),
   reseed: (...a) => impl.reseed(...a),
   addSongs: (...a) => impl.addSongs(...a),
+  getBranding: (...a) => impl.getBranding(...a),
+  setBranding: (...a) => impl.setBranding(...a),
 };

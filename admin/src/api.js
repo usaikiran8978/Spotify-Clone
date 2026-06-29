@@ -13,6 +13,9 @@ async function req(path, options) {
 export const api = {
   languages: () => req('/api/languages'),
   categories: () => req('/api/categories'),
+  branding: () => req('/api/branding'),
+  updateBranding: (patch) =>
+    req('/api/admin/branding', { method: 'PUT', body: JSON.stringify(patch) }),
   songs: (params = {}) => {
     const qs = new URLSearchParams(
       Object.entries(params).filter(([, v]) => v),
