@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api';
 import { usePreferences } from '../context/PreferencesContext';
@@ -8,13 +9,14 @@ import { colors } from '../theme';
 export default function SettingsScreen({ onBack }) {
   const { language, setLanguage } = usePreferences();
   const [languages, setLanguages] = useState([]);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     api.languages().then(setLanguages).catch(() => {});
   }, []);
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { paddingTop: insets.top + 12 }]}>
       <View style={styles.head}>
         <Pressable onPress={onBack} hitSlop={12}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
@@ -57,7 +59,7 @@ function Row({ label, active, onPress }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, backgroundColor: colors.bg, paddingTop: 48 },
+  wrap: { flex: 1, backgroundColor: colors.bg },
   head: {
     flexDirection: 'row',
     alignItems: 'center',

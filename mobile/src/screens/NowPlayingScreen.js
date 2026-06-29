@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayer } from '../context/PlayerContext';
 import DownloadButton from '../components/DownloadButton';
@@ -28,12 +29,22 @@ export default function NowPlayingScreen({ onClose }) {
     cycleRepeat,
   } = usePlayer();
   const trackWidth = useRef(0);
+  const insets = useSafeAreaInsets();
   if (!current) return null;
   const pct = duration ? Math.min(1, position / duration) : 0;
   const repeatActive = repeatMode !== 'off';
 
   return (
-    <View style={[styles.wrap, { backgroundColor: accentFor(current.id) }]}>
+    <View
+      style={[
+        styles.wrap,
+        {
+          backgroundColor: accentFor(current.id),
+          paddingTop: insets.top + 12,
+          paddingBottom: insets.bottom + 8,
+        },
+      ]}
+    >
       <View style={styles.topbar}>
         <Pressable onPress={onClose} hitSlop={12}>
           <Ionicons name="chevron-down" size={28} color="#fff" />
@@ -120,7 +131,7 @@ export default function NowPlayingScreen({ onClose }) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, paddingHorizontal: 24, paddingTop: 56 },
+  wrap: { flex: 1, paddingHorizontal: 24 },
   topbar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   topTitle: { color: '#fff', fontSize: 11, fontWeight: '700', letterSpacing: 1 },

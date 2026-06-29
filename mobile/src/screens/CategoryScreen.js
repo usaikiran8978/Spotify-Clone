@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import SongRow from '../components/SongRow';
 import { api } from '../api';
@@ -17,6 +18,7 @@ import { colors, accentFor } from '../theme';
 export default function CategoryScreen({ category, onBack }) {
   const { language } = usePreferences();
   const { playSong } = usePlayer();
+  const insets = useSafeAreaInsets();
   const [songs, setSongs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,8 +33,17 @@ export default function CategoryScreen({ category, onBack }) {
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.hero, { backgroundColor: accentFor(category.slug) }]}>
-        <Pressable onPress={onBack} hitSlop={12} style={styles.back}>
+      <View
+        style={[
+          styles.hero,
+          { backgroundColor: accentFor(category.slug), paddingTop: insets.top + 16 },
+        ]}
+      >
+        <Pressable
+          onPress={onBack}
+          hitSlop={12}
+          style={[styles.back, { top: insets.top + 12 }]}
+        >
           <Ionicons name="chevron-back" size={28} color="#fff" />
         </Pressable>
         <Text style={styles.heroTitle}>{category.name}</Text>

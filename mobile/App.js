@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Modal, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -87,21 +88,23 @@ function Root() {
 
 export default function App() {
   return (
-    <PreferencesProvider>
-      <BrandingProvider>
-        <DownloadsProvider>
-          <PlaylistsProvider>
-          <PlayerProvider>
-              <SafeAreaView style={styles.safe}>
-                <StatusBar style="light" />
-                <Root />
-                <UpdateGate />
-              </SafeAreaView>
-            </PlayerProvider>
-          </PlaylistsProvider>
-        </DownloadsProvider>
-      </BrandingProvider>
-    </PreferencesProvider>
+    <SafeAreaProvider>
+      <PreferencesProvider>
+        <BrandingProvider>
+          <DownloadsProvider>
+            <PlaylistsProvider>
+              <PlayerProvider>
+                <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+                  <StatusBar style="light" />
+                  <Root />
+                  <UpdateGate />
+                </SafeAreaView>
+              </PlayerProvider>
+            </PlaylistsProvider>
+          </DownloadsProvider>
+        </BrandingProvider>
+      </PreferencesProvider>
+    </SafeAreaProvider>
   );
 }
 
