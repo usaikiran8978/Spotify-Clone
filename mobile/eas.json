@@ -11,7 +11,7 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://spotify-clone-1-ln6l.onrender.com",
-        "EXPO_PUBLIC_SAAVN_URL": ""
+        "EXPO_PUBLIC_SAAVN_URL": "https://melody-saavn-api.onrender.com"
       }
     },
     "production": {
@@ -20,7 +20,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://spotify-clone-1-ln6l.onrender.com",
-        "EXPO_PUBLIC_SAAVN_URL": ""
+        "EXPO_PUBLIC_SAAVN_URL": "https://melody-saavn-api.onrender.com"
       }
     }
   },
