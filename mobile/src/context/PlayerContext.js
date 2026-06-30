@@ -123,6 +123,15 @@ export function PlayerProvider({ children }) {
     else await TrackPlayer.play();
   }
 
+  // Explicit play/pause (used by "Listen Together" to mirror the host exactly,
+  // where togglePlay's "flip current state" semantics would be ambiguous).
+  async function play() {
+    await TrackPlayer.play();
+  }
+  async function pause() {
+    await TrackPlayer.pause();
+  }
+
   async function next() {
     try {
       await TrackPlayer.skipToNext();
@@ -175,6 +184,8 @@ export function PlayerProvider({ children }) {
         repeatMode,
         playSong,
         togglePlay,
+        play,
+        pause,
         next,
         prev,
         seek,

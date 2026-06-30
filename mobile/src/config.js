@@ -17,6 +17,13 @@ const localDefault =
 export const API_URL = ENV_URL || localDefault;
 export { LAN_IP };
 
+// WebSocket endpoint for "Listen Together" rooms. Derived from API_URL by
+// swapping the scheme (http→ws, https→wss) and appending /ws, so it points at
+// the same backend with no extra setup. Override with EXPO_PUBLIC_WS_URL.
+export const WS_URL =
+  process.env.EXPO_PUBLIC_WS_URL ||
+  `${API_URL.replace(/^http/, 'ws').replace(/\/$/, '')}/ws`;
+
 // JioSaavn API base URL for FULL-LENGTH songs (self-hosted instance of
 // sumitkolhe/jiosaavn-api). Defaults to the deployed instance so full songs
 // work without any env setup; override with EXPO_PUBLIC_SAAVN_URL. Set this to

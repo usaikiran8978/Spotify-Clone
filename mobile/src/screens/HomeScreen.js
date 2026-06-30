@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import Shelf from '../components/Shelf';
 import { api } from '../api';
 import { usePreferences } from '../context/PreferencesContext';
@@ -22,7 +23,7 @@ const greeting = () => {
   return 'Good evening';
 };
 
-export default function HomeScreen({ onOpenSettings }) {
+export default function HomeScreen({ onOpenSettings, onOpenRoom }) {
   const { language, setLanguage } = usePreferences();
   const branding = useBranding();
   const [data, setData] = useState(null);
@@ -83,9 +84,14 @@ export default function HomeScreen({ onOpenSettings }) {
       </View>
       <View style={styles.header}>
         <Text style={styles.greeting}>{greeting()}</Text>
-        <Pressable onPress={onOpenSettings}>
-          <Text style={styles.gear}>⚙︎</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable onPress={onOpenRoom} hitSlop={8}>
+            <Ionicons name="people-circle-outline" size={26} color={colors.text} />
+          </Pressable>
+          <Pressable onPress={onOpenSettings} hitSlop={8}>
+            <Text style={styles.gear}>⚙︎</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Quick language switch chips */}
@@ -154,6 +160,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   greeting: { color: colors.text, fontSize: 24, fontWeight: '800' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   gear: { color: colors.text, fontSize: 22 },
   chips: { marginBottom: 16, flexGrow: 0 },
   chip: {

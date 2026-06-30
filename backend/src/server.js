@@ -1,7 +1,9 @@
+import http from 'http';
 import express from 'express';
 import cors from 'cors';
 import { customAlphabet } from 'nanoid';
 import { store } from './store.js';
+import { attachRoomServer } from './rooms.js';
 import { importCatalogue, importFromAudius } from './importer.js';
 import {
   nameFor,
@@ -332,7 +334,12 @@ app.get('/health', (_req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 4000;
 store.init().then(() => {
-  app.listen(PORT, () => {
+  // Wrap Express in a bare HTTP server so the "Listen Together" WebSocket can
+  // share the same port (WS upgrades over the existing HTTP connection).
+  const server = http.createServer(app);
+  attachRoomServer(server);
+  server.listen(PORT, () => {
     console.log(`🎵  Song API running on http://localhost:${PORT}`);
+    console.log(`🎧  Listen-together rooms on ws://localhost:${PORT}/ws`);
   });
 });

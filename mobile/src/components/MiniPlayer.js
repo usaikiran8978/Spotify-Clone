@@ -2,9 +2,11 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
 import { usePlayer } from '../context/PlayerContext';
+import { useRoom } from '../context/RoomContext';
 
 export default function MiniPlayer({ onOpen }) {
   const { current, isPlaying, togglePlay, next } = usePlayer();
+  const { isFollower } = useRoom();
   if (!current) return null;
   return (
     <Pressable style={styles.bar} onPress={onOpen}>
@@ -17,12 +19,19 @@ export default function MiniPlayer({ onOpen }) {
           {current.artist}
         </Text>
       </View>
-      <Pressable hitSlop={10} onPress={togglePlay}>
-        <Ionicons name={isPlaying ? 'pause' : 'play'} size={26} color={colors.text} />
-      </Pressable>
-      <Pressable hitSlop={10} onPress={next} style={{ marginLeft: 18 }}>
-        <Ionicons name="play-skip-forward" size={22} color={colors.text} />
-      </Pressable>
+      {isFollower ? (
+        // In a room as a listener: the host controls playback.
+        <Ionicons name="radio" size={22} color={colors.green} />
+      ) : (
+        <>
+          <Pressable hitSlop={10} onPress={togglePlay}>
+            <Ionicons name={isPlaying ? 'pause' : 'play'} size={26} color={colors.text} />
+          </Pressable>
+          <Pressable hitSlop={10} onPress={next} style={{ marginLeft: 18 }}>
+            <Ionicons name="play-skip-forward" size={22} color={colors.text} />
+          </Pressable>
+        </>
+      )}
     </Pressable>
   );
 }

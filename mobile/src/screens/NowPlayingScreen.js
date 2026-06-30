@@ -3,6 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlayer } from '../context/PlayerContext';
+import { useRoom } from '../context/RoomContext';
 import DownloadButton from '../components/DownloadButton';
 import AddToPlaylistButton from '../components/AddToPlaylistButton';
 import { colors, accentFor } from '../theme';
@@ -28,11 +29,14 @@ export default function NowPlayingScreen({ onClose }) {
     repeatMode,
     cycleRepeat,
   } = usePlayer();
+  const { isFollower, room } = useRoom();
   const trackWidth = useRef(0);
   const insets = useSafeAreaInsets();
   if (!current) return null;
   const pct = duration ? Math.min(1, position / duration) : 0;
   const repeatActive = repeatMode !== 'off';
+  // In a room as a listener, the host drives playback — controls are read-only.
+  const locked = isFollower;
 
   return (
     <View
@@ -74,6 +78,7 @@ export default function NowPlayingScreen({ onClose }) {
           trackWidth.current = e.nativeEvent.layout.width;
         }}
         onPress={(e) => {
+          if (locked) return; // listener: host controls the position
           const w = trackWidth.current || 1;
           const x = e.nativeEvent.locationX;
           if (duration) seek(Math.max(0, Math.min(1, x / w)) * duration);
@@ -88,7 +93,7 @@ export default function NowPlayingScreen({ onClose }) {
         <Text style={styles.time}>{fmt(duration)}</Text>
       </View>
 
-      <View style={styles.controls}>
+      <View style={[styles.controls, locked && styles.controlsLocked]} pointerEvents={locked ? 'none' : 'auto'}>
         <Pressable onPress={prev} hitSlop={10}>
           <Ionicons name="play-skip-back" size={32} color="#fff" />
         </Pressable>
@@ -108,24 +113,36 @@ export default function NowPlayingScreen({ onClose }) {
         </Pressable>
       </View>
 
-      {/* Repeat toggle: off → loop queue → loop one. */}
-      <View style={styles.secondaryRow}>
-        <Pressable onPress={cycleRepeat} hitSlop={12} style={styles.repeatBtn}>
-          <Ionicons
-            name="repeat"
-            size={22}
-            color={repeatActive ? '#fff' : 'rgba(255,255,255,0.4)'}
-          />
-          {repeatMode === 'one' && <Text style={styles.repeatOne}>1</Text>}
-          <Text style={[styles.repeatLabel, { opacity: repeatActive ? 1 : 0.5 }]}>
-            {repeatMode === 'one'
-              ? 'Repeat one'
-              : repeatMode === 'all'
-                ? 'Loop queue'
-                : 'Repeat off'}
-          </Text>
-        </Pressable>
-      </View>
+      {locked ? (
+        // Listener in a room — playback is mirrored from the host.
+        <View style={styles.secondaryRow}>
+          <View style={styles.syncBadge}>
+            <Ionicons name="radio" size={16} color="#fff" />
+            <Text style={styles.syncText}>
+              Synced with {room?.hostName || 'the host'}
+            </Text>
+          </View>
+        </View>
+      ) : (
+        /* Repeat toggle: off → loop queue → loop one. */
+        <View style={styles.secondaryRow}>
+          <Pressable onPress={cycleRepeat} hitSlop={12} style={styles.repeatBtn}>
+            <Ionicons
+              name="repeat"
+              size={22}
+              color={repeatActive ? '#fff' : 'rgba(255,255,255,0.4)'}
+            />
+            {repeatMode === 'one' && <Text style={styles.repeatOne}>1</Text>}
+            <Text style={[styles.repeatLabel, { opacity: repeatActive ? 1 : 0.5 }]}>
+              {repeatMode === 'one'
+                ? 'Repeat one'
+                : repeatMode === 'all'
+                  ? 'Loop queue'
+                  : 'Repeat off'}
+            </Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
@@ -156,6 +173,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     marginTop: 28,
   },
+  controlsLocked: { opacity: 0.35 },
   seekBtn: { alignItems: 'center', justifyContent: 'center' },
   seekLabel: {
     color: '#fff',
@@ -176,6 +194,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 24,
   },
+  syncBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
+  },
+  syncText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   repeatBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   repeatOne: {
     color: '#fff',

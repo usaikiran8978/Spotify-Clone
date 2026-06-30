@@ -9,7 +9,10 @@ import { BrandingProvider } from './src/context/BrandingContext';
 import { DownloadsProvider } from './src/context/DownloadsContext';
 import { PlaylistsProvider } from './src/context/PlaylistsContext';
 import { PlayerProvider } from './src/context/PlayerContext';
+import { RoomProvider } from './src/context/RoomContext';
+import { CallProvider } from './src/context/CallContext';
 import MiniPlayer from './src/components/MiniPlayer';
+import RoomBanner from './src/components/RoomBanner';
 import UpdateGate from './src/components/UpdateGate';
 
 import OnboardingScreen from './src/screens/OnboardingScreen';
@@ -20,6 +23,7 @@ import LibraryScreen from './src/screens/LibraryScreen';
 import CategoryScreen from './src/screens/CategoryScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import NowPlayingScreen from './src/screens/NowPlayingScreen';
+import RoomScreen from './src/screens/RoomScreen';
 
 import { colors } from './src/theme';
 
@@ -35,16 +39,23 @@ function Shell() {
   const [category, setCategory] = useState(null); // drill-down overlay
   const [showSettings, setShowSettings] = useState(false);
   const [showPlayer, setShowPlayer] = useState(false);
+  const [showRoom, setShowRoom] = useState(false);
 
   return (
     <View style={styles.app}>
       <View style={styles.body}>
-        {tab === 'home' && <HomeScreen onOpenSettings={() => setShowSettings(true)} />}
+        {tab === 'home' && (
+          <HomeScreen
+            onOpenSettings={() => setShowSettings(true)}
+            onOpenRoom={() => setShowRoom(true)}
+          />
+        )}
         {tab === 'search' && <SearchScreen />}
         {tab === 'browse' && <BrowseScreen onOpenCategory={setCategory} />}
         {tab === 'library' && <LibraryScreen />}
       </View>
 
+      <RoomBanner onOpen={() => setShowRoom(true)} />
       <MiniPlayer onOpen={() => setShowPlayer(true)} />
 
       <View style={styles.tabbar}>
@@ -76,6 +87,10 @@ function Shell() {
       <Modal visible={showPlayer} animationType="slide" onRequestClose={() => setShowPlayer(false)}>
         <NowPlayingScreen onClose={() => setShowPlayer(false)} />
       </Modal>
+
+      <Modal visible={showRoom} animationType="slide" onRequestClose={() => setShowRoom(false)}>
+        <RoomScreen onClose={() => setShowRoom(false)} />
+      </Modal>
     </View>
   );
 }
@@ -94,11 +109,15 @@ export default function App() {
           <DownloadsProvider>
             <PlaylistsProvider>
               <PlayerProvider>
-                <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-                  <StatusBar style="light" />
-                  <Root />
-                  <UpdateGate />
-                </SafeAreaView>
+                <RoomProvider>
+                  <CallProvider>
+                    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+                      <StatusBar style="light" />
+                      <Root />
+                      <UpdateGate />
+                    </SafeAreaView>
+                  </CallProvider>
+                </RoomProvider>
               </PlayerProvider>
             </PlaylistsProvider>
           </DownloadsProvider>
